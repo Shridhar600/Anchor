@@ -120,6 +120,21 @@ pub fn migrations() -> Migrations<'static> {
                 ('log','Log'),('checkpoint','Checkpoint'),('decision','Decision');
         "#,
         ),
+        // --- v3: command audit log ---
+        M::up(
+            r#"
+            CREATE TABLE command_log (
+                id          INTEGER PRIMARY KEY,
+                ts          TEXT NOT NULL,
+                actor       TEXT NOT NULL,
+                command     TEXT NOT NULL,
+                target_type TEXT,
+                target_id   TEXT,
+                summary     TEXT NOT NULL
+            );
+            CREATE INDEX idx_command_log_ts ON command_log(ts);
+        "#,
+        ),
     ])
 }
 

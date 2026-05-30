@@ -69,6 +69,16 @@ pub fn create(conn: &mut Connection, t: NewThread) -> Result<Thread> {
     get(conn, id)
 }
 
+pub fn get_by_ticket_key(conn: &Connection, ticket_key: &str) -> Result<Thread> {
+    conn.query_row(
+        "SELECT * FROM threads WHERE ticket_key=?1",
+        [ticket_key],
+        map_row,
+    )
+    .optional()?
+    .ok_or_else(|| AnchorError::NotFound(format!("thread '{ticket_key}'")))
+}
+
 pub fn get(conn: &Connection, id: i64) -> Result<Thread> {
     conn.query_row("SELECT * FROM threads WHERE id=?1", [id], map_row)
         .optional()?
@@ -200,5 +210,16 @@ mod tests {
         let t = create(&mut db.conn, nt).unwrap();
         delete(&mut db.conn, t.id).unwrap();
         assert!(get(&db.conn, t.id).is_err());
+    }
+
+    #[test]
+    fn get_by_ticket_key_finds_thread() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let nt = new_thread(&db.conn, pid);
+        let t = create(&mut db.conn, nt).unwrap();
+        let found = get_by_ticket_key(&db.conn, &t.ticket_key).unwrap();
+        assert_eq!(found.id, t.id);
+        assert!(get_by_ticket_key(&db.conn, "NOPE-1").is_err());
     }
 }
