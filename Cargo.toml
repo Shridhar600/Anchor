@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["anchor-core"]
+members = ["anchor-core", "anchor-cli"]
 
 [profile.release]
 opt-level = 3
