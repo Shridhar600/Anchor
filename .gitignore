@@ -1,0 +1,24 @@
+# ---- Working docs & personal data (NEVER publish) ----
+/docs/
+.claude/
+*.local
+
+# ---- Secrets / env ----
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# ---- Rust ----
+/target/
+**/target/
+*.rs.bk
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
