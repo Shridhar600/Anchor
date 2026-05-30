@@ -2,6 +2,8 @@
 /docs/
 .claude/
 *.local
+claude.md
+agents.md
 
 # ---- Secrets / env ----
 .env
