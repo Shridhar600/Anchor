@@ -2,6 +2,7 @@ use crate::error::{AnchorError, Result};
 use crate::models::{NoteAuthor, ThreadNote};
 use rusqlite::{Connection, OptionalExtension};
 
+/// Input for creating a new thread note.
 pub struct NewNote {
     pub thread_id: i64,
     pub author: NoteAuthor,
@@ -14,9 +15,16 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<ThreadNote> {
     Ok(ThreadNote {
         id: r.get("id")?,
         thread_id: r.get("thread_id")?,
-        author: NoteAuthor::from_str(&r.get::<_, String>("author")?)
-            .ok()
-            .unwrap_or(NoteAuthor::User),
+        author: {
+            let s: String = r.get("author")?;
+            s.parse::<NoteAuthor>().map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
+            })?
+        },
         author_name: r.get("author_name")?,
         kind_id: r.get("kind_id")?,
         body: r.get("body")?,
@@ -24,9 +32,10 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<ThreadNote> {
     })
 }
 
-pub fn add(conn: &Connection, n: NewNote) -> Result<ThreadNote> {
-    // Guard against orphan notes (no DB FK).
-    let exists: Option<i64> = conn
+/// Add a note to a thread (atomic: guard + insert in an IMMEDIATE transaction).
+pub fn add(conn: &mut Connection, n: NewNote) -> Result<ThreadNote> {
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let exists: Option<i64> = tx
         .query_row("SELECT id FROM threads WHERE id=?1", [n.thread_id], |r| {
             r.get(0)
         })
@@ -34,7 +43,7 @@ pub fn add(conn: &Connection, n: NewNote) -> Result<ThreadNote> {
     if exists.is_none() {
         return Err(AnchorError::NotFound(format!("thread {}", n.thread_id)));
     }
-    conn.execute(
+    tx.execute(
         "INSERT INTO thread_notes (thread_id, author, author_name, kind_id, body, created_at)
          VALUES (?1,?2,?3,?4,?5, strftime('%Y-%m-%dT%H:%M:%SZ','now'))",
         rusqlite::params![
@@ -45,11 +54,13 @@ pub fn add(conn: &Connection, n: NewNote) -> Result<ThreadNote> {
             n.body
         ],
     )?;
-    let id = conn.last_insert_rowid();
-    conn.query_row("SELECT * FROM thread_notes WHERE id=?1", [id], map_row)
-        .map_err(Into::into)
+    let id = tx.last_insert_rowid();
+    let note = tx.query_row("SELECT * FROM thread_notes WHERE id=?1", [id], map_row)?;
+    tx.commit()?;
+    Ok(note)
 }
 
+/// List notes for a thread, newest first.
 pub fn list_by_thread(conn: &Connection, thread_id: i64) -> Result<Vec<ThreadNote>> {
     let mut stmt = conn.prepare(
         "SELECT * FROM thread_notes WHERE thread_id=?1 ORDER BY created_at DESC, id DESC",
@@ -118,7 +129,7 @@ mod tests {
         let tid = setup_thread(&mut db);
         let log = lookup::id_for_key(&db.conn, "note_kinds", "log").unwrap();
         add(
-            &db.conn,
+            &mut db.conn,
             NewNote {
                 thread_id: tid,
                 author: NoteAuthor::User,
@@ -129,7 +140,7 @@ mod tests {
         )
         .unwrap();
         add(
-            &db.conn,
+            &mut db.conn,
             NewNote {
                 thread_id: tid,
                 author: NoteAuthor::Agent,
@@ -150,7 +161,7 @@ mod tests {
         let tid = setup_thread(&mut db);
         let cp = lookup::id_for_key(&db.conn, "note_kinds", "checkpoint").unwrap();
         add(
-            &db.conn,
+            &mut db.conn,
             NewNote {
                 thread_id: tid,
                 author: NoteAuthor::Agent,
@@ -166,11 +177,11 @@ mod tests {
 
     #[test]
     fn add_to_missing_thread_is_not_found() {
-        let db = Db::open_in_memory().unwrap();
+        let mut db = Db::open_in_memory().unwrap();
         let log = lookup::id_for_key(&db.conn, "note_kinds", "log").unwrap();
         assert!(matches!(
             add(
-                &db.conn,
+                &mut db.conn,
                 NewNote {
                     thread_id: 999,
                     author: NoteAuthor::User,
@@ -181,5 +192,12 @@ mod tests {
             ),
             Err(AnchorError::NotFound(_))
         ));
+    }
+
+    #[test]
+    fn latest_checkpoint_none_when_no_checkpoints() {
+        let mut db = Db::open_in_memory().unwrap();
+        let tid = setup_thread(&mut db);
+        assert!(latest_checkpoint(&db.conn, tid).unwrap().is_none());
     }
 }

@@ -2,6 +2,7 @@ use crate::error::{AnchorError, Result};
 use crate::models::{Project, ProjectStatus};
 use rusqlite::{Connection, OptionalExtension};
 
+/// Input for creating a new project.
 pub struct NewProject {
     pub key: String,
     pub name: String,
@@ -19,14 +20,23 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<Project> {
         description: r.get("description")?,
         local_path: r.get("local_path")?,
         git_remote: r.get("git_remote")?,
-        status: ProjectStatus::from_str(&r.get::<_, String>("status")?)
-            .unwrap_or(ProjectStatus::Active),
+        status: {
+            let s: String = r.get("status")?;
+            s.parse::<ProjectStatus>().map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
+            })?
+        },
         thread_counter: r.get("thread_counter")?,
         created_at: r.get("created_at")?,
         updated_at: r.get("updated_at")?,
     })
 }
 
+/// Create a new project and return its full row.
 pub fn create(conn: &Connection, p: NewProject) -> Result<Project> {
     conn.execute(
         "INSERT INTO projects (key, name, description, local_path, git_remote, status, thread_counter, created_at, updated_at)
@@ -37,24 +47,28 @@ pub fn create(conn: &Connection, p: NewProject) -> Result<Project> {
     get(conn, id)
 }
 
+/// Get a project by its numeric id.
 pub fn get(conn: &Connection, id: i64) -> Result<Project> {
     conn.query_row("SELECT * FROM projects WHERE id = ?1", [id], map_row)
         .optional()?
         .ok_or_else(|| AnchorError::NotFound(format!("project {id}")))
 }
 
+/// Get a project by its unique key string.
 pub fn get_by_key(conn: &Connection, key: &str) -> Result<Project> {
     conn.query_row("SELECT * FROM projects WHERE key = ?1", [key], map_row)
         .optional()?
         .ok_or_else(|| AnchorError::NotFound(format!("project key '{key}'")))
 }
 
+/// List all projects ordered by name.
 pub fn list(conn: &Connection) -> Result<Vec<Project>> {
     let mut stmt = conn.prepare("SELECT * FROM projects ORDER BY name")?;
     let rows = stmt.query_map([], map_row)?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Update a project's mutable fields. Returns `NotFound` if the id doesn't exist.
 pub fn update(conn: &Connection, p: &Project) -> Result<()> {
     let n = conn.execute(
         "UPDATE projects SET name=?2, description=?3, local_path=?4, git_remote=?5, status=?6,
@@ -74,6 +88,7 @@ pub fn update(conn: &Connection, p: &Project) -> Result<()> {
     Ok(())
 }
 
+/// Delete a project and all its children (threads, notes, resources, custom statuses).
 pub fn delete(conn: &mut Connection, id: i64) -> Result<()> {
     let tx = conn.transaction()?;
     tx.execute(
@@ -129,5 +144,38 @@ mod tests {
         let p = create(&db.conn, sample()).unwrap();
         delete(&mut db.conn, p.id).unwrap();
         assert!(get(&db.conn, p.id).is_err());
+    }
+
+    #[test]
+    fn get_with_corrupt_status_errors() {
+        let db = Db::open_in_memory().unwrap();
+        let p = create(&db.conn, sample()).unwrap();
+        db.conn
+            .execute("UPDATE projects SET status='bogus' WHERE id=?1", [p.id])
+            .unwrap();
+        assert!(get(&db.conn, p.id).is_err());
+    }
+
+    #[test]
+    fn update_persists_changes() {
+        let db = Db::open_in_memory().unwrap();
+        let mut p = create(&db.conn, sample()).unwrap();
+        p.name = "Renamed".into();
+        p.status = ProjectStatus::Archived;
+        update(&db.conn, &p).unwrap();
+        let got = get(&db.conn, p.id).unwrap();
+        assert_eq!(got.name, "Renamed");
+        assert_eq!(got.status, ProjectStatus::Archived);
+    }
+
+    #[test]
+    fn update_missing_is_not_found() {
+        let db = Db::open_in_memory().unwrap();
+        let mut p = create(&db.conn, sample()).unwrap();
+        p.id = 999;
+        assert!(matches!(
+            update(&db.conn, &p),
+            Err(AnchorError::NotFound(_))
+        ));
     }
 }

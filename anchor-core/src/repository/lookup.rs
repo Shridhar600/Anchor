@@ -15,19 +15,24 @@ fn list(conn: &Connection, table: &str) -> Result<Vec<LookupRow>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// List seeded thread type lookup rows.
 pub fn thread_types(conn: &Connection) -> Result<Vec<LookupRow>> {
     list(conn, "thread_types")
 }
+/// List seeded priority lookup rows.
 pub fn priorities(conn: &Connection) -> Result<Vec<LookupRow>> {
     list(conn, "priorities")
 }
+/// List seeded resource type lookup rows.
 pub fn resource_types(conn: &Connection) -> Result<Vec<LookupRow>> {
     list(conn, "resource_types")
 }
+/// List seeded note kind lookup rows.
 pub fn note_kinds(conn: &Connection) -> Result<Vec<LookupRow>> {
     list(conn, "note_kinds")
 }
 
+/// List global statuses (those not scoped to a specific project).
 pub fn global_statuses(conn: &Connection) -> Result<Vec<LookupRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, key, label FROM statuses WHERE project_id IS NULL ORDER BY \"order\"",
@@ -42,6 +47,7 @@ pub fn global_statuses(conn: &Connection) -> Result<Vec<LookupRow>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Resolve a lookup key to its numeric id.
 pub fn id_for_key(conn: &Connection, table: &str, key: &str) -> Result<i64> {
     let sql = format!("SELECT id FROM {table} WHERE key = ?1");
     conn.query_row(&sql, [key], |r| r.get(0))

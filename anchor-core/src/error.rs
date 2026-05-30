@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Errors returned by the anchor-core data layer.
 #[derive(Debug, Error)]
 pub enum AnchorError {
     #[error("database error: {0}")]
@@ -12,6 +13,7 @@ pub enum AnchorError {
     Invalid(String),
 }
 
+/// Convenience alias for `Result<T, AnchorError>`.
 pub type Result<T> = std::result::Result<T, AnchorError>;
 
 #[cfg(test)]

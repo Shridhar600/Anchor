@@ -2,16 +2,19 @@ use crate::error::Result;
 use crate::migrations::migrations;
 use rusqlite::Connection;
 
+/// An open SQLite database connection with migrations applied.
 pub struct Db {
     pub conn: Connection,
 }
 
 impl Db {
+    /// Open (or create) a database at `path` and run pending migrations.
     pub fn open(path: &str) -> Result<Self> {
         let conn = Connection::open(path)?;
         Self::init(conn)
     }
 
+    /// Open an in-memory database (for testing).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         Self::init(conn)
