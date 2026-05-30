@@ -56,7 +56,7 @@ fn add(ctx: &mut Context, a: ThreadAddArgs) -> Result<i32, CliError> {
         &format!("{} created: {}", t.ticket_key, t.title),
     )?;
     if ctx.json {
-        println!("{}", serde_json::to_string_pretty(&t).expect("serialize"));
+        crate::output::emit_json(&t)?;
     } else {
         println!("Opened {}: {}", t.ticket_key, t.title);
     }
@@ -67,10 +67,7 @@ fn list(ctx: &Context, project_key: &str) -> Result<i32, CliError> {
     let proj = project::get_by_key(&ctx.db.conn, project_key)?;
     let threads = thread::list_by_project(&ctx.db.conn, proj.id)?;
     if ctx.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&threads).expect("serialize")
-        );
+        crate::output::emit_json(&threads)?;
     } else if threads.is_empty() {
         println!("No threads in {}.", proj.key);
     } else {
@@ -102,10 +99,7 @@ fn move_status(ctx: &Context, ticket_key: &str, status_key: &str) -> Result<i32,
     )?;
     if ctx.json {
         let updated = thread::get(&ctx.db.conn, t.id)?;
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&updated).expect("serialize")
-        );
+        crate::output::emit_json(&updated)?;
     } else {
         println!("Moved {ticket_key} to {status_key}");
     }
@@ -124,10 +118,7 @@ fn show(ctx: &Context, ticket_key: &str) -> Result<i32, CliError> {
             "notes": notes,
             "resources": resources,
         });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&view).expect("serialize")
-        );
+        crate::output::emit_json(&view)?;
     } else {
         let types = label_map(lookup::thread_types(&ctx.db.conn)?);
         let stats = label_map(lookup::global_statuses(&ctx.db.conn)?);

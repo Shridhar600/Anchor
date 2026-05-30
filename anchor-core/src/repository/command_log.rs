@@ -2,6 +2,7 @@ use crate::error::Result;
 use crate::models::CommandLogEntry;
 use rusqlite::Connection;
 
+/// Input for recording an entry in the append-only command audit log.
 pub struct NewLogEntry {
     pub actor: String,
     pub command: String,

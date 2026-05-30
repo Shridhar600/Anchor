@@ -1,6 +1,7 @@
 use crate::error::{AnchorError, Result};
 use serde::Serialize;
 
+/// Whether a project is active, archived, or just an idea.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectStatus {
@@ -10,6 +11,7 @@ pub enum ProjectStatus {
 }
 
 impl ProjectStatus {
+    /// Return the serialized string form.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Active => "active",
@@ -17,8 +19,11 @@ impl ProjectStatus {
             Self::Idea => "idea",
         }
     }
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self> {
+}
+
+impl std::str::FromStr for ProjectStatus {
+    type Err = AnchorError;
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "active" => Ok(Self::Active),
             "archived" => Ok(Self::Archived),
@@ -28,6 +33,7 @@ impl ProjectStatus {
     }
 }
 
+/// Whether a note was written by a user or an AI agent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NoteAuthor {
@@ -36,14 +42,18 @@ pub enum NoteAuthor {
 }
 
 impl NoteAuthor {
+    /// Return the serialized string form.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::User => "user",
             Self::Agent => "agent",
         }
     }
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self> {
+}
+
+impl std::str::FromStr for NoteAuthor {
+    type Err = AnchorError;
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "user" => Ok(Self::User),
             "agent" => Ok(Self::Agent),
@@ -52,6 +62,7 @@ impl NoteAuthor {
     }
 }
 
+/// A row from a generic lookup table (id, key, label).
 #[derive(Debug, Clone, Serialize)]
 pub struct LookupRow {
     pub id: i64,
@@ -59,6 +70,7 @@ pub struct LookupRow {
     pub label: String,
 }
 
+/// A tracked development project.
 #[derive(Debug, Clone, Serialize)]
 pub struct Project {
     pub id: i64,
@@ -73,6 +85,7 @@ pub struct Project {
     pub updated_at: String,
 }
 
+/// A ticket / issue within a project.
 #[derive(Debug, Clone, Serialize)]
 pub struct Thread {
     pub id: i64,
@@ -89,6 +102,7 @@ pub struct Thread {
     pub updated_at: String,
 }
 
+/// A note attached to a thread.
 #[derive(Debug, Clone, Serialize)]
 pub struct ThreadNote {
     pub id: i64,
@@ -100,6 +114,7 @@ pub struct ThreadNote {
     pub created_at: String,
 }
 
+/// A resource (URL, file, etc.) scoped to a project or a thread.
 #[derive(Debug, Clone, Serialize)]
 pub struct Resource {
     pub id: i64,
@@ -111,6 +126,7 @@ pub struct Resource {
     pub created_at: String,
 }
 
+/// An entry in the append-only command audit log.
 #[derive(Debug, Clone, Serialize)]
 pub struct CommandLogEntry {
     pub id: i64,
@@ -128,11 +144,18 @@ mod tests {
     #[test]
     fn project_status_roundtrip() {
         assert_eq!(
-            ProjectStatus::from_str("idea").unwrap(),
+            "idea".parse::<ProjectStatus>().unwrap(),
             ProjectStatus::Idea
         );
         assert_eq!(ProjectStatus::Archived.as_str(), "archived");
-        assert!(ProjectStatus::from_str("bogus").is_err());
+        assert!("bogus".parse::<ProjectStatus>().is_err());
+    }
+
+    #[test]
+    fn note_author_roundtrip() {
+        assert_eq!("agent".parse::<NoteAuthor>().unwrap(), NoteAuthor::Agent);
+        assert_eq!(NoteAuthor::User.as_str(), "user");
+        assert!("nobody".parse::<NoteAuthor>().is_err());
     }
 
     #[test]

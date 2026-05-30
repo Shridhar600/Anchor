@@ -1,3 +1,5 @@
+//! Repository layer: CRUD operations for each entity, with integrity enforcement.
+
 pub mod command_log;
 pub mod lookup;
 pub mod note;

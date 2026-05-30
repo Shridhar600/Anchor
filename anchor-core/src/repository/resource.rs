@@ -2,9 +2,10 @@ use crate::error::{AnchorError, Result};
 use crate::models::Resource;
 use rusqlite::{Connection, OptionalExtension};
 
+/// Input for creating a new resource.
 pub struct NewResource {
     pub project_id: i64,
-    pub thread_id: Option<i64>, // None = project-level
+    pub thread_id: Option<i64>,
     pub type_id: i64,
     pub label: String,
     pub value: String,
@@ -22,9 +23,10 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<Resource> {
     })
 }
 
-pub fn add(conn: &Connection, res: NewResource) -> Result<Resource> {
-    // Guard: project must exist; if thread-scoped, thread must exist and belong to project.
-    let proj: Option<i64> = conn
+/// Add a resource (atomic: guards + insert in an IMMEDIATE transaction).
+pub fn add(conn: &mut Connection, res: NewResource) -> Result<Resource> {
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let proj: Option<i64> = tx
         .query_row(
             "SELECT id FROM projects WHERE id=?1",
             [res.project_id],
@@ -35,7 +37,7 @@ pub fn add(conn: &Connection, res: NewResource) -> Result<Resource> {
         return Err(AnchorError::NotFound(format!("project {}", res.project_id)));
     }
     if let Some(tid) = res.thread_id {
-        let ok: Option<i64> = conn
+        let ok: Option<i64> = tx
             .query_row(
                 "SELECT id FROM threads WHERE id=?1 AND project_id=?2",
                 rusqlite::params![tid, res.project_id],
@@ -49,7 +51,7 @@ pub fn add(conn: &Connection, res: NewResource) -> Result<Resource> {
             )));
         }
     }
-    conn.execute(
+    tx.execute(
         "INSERT INTO resources (project_id, thread_id, type_id, label, value, created_at)
          VALUES (?1,?2,?3,?4,?5, strftime('%Y-%m-%dT%H:%M:%SZ','now'))",
         rusqlite::params![
@@ -60,9 +62,10 @@ pub fn add(conn: &Connection, res: NewResource) -> Result<Resource> {
             res.value
         ],
     )?;
-    let id = conn.last_insert_rowid();
-    conn.query_row("SELECT * FROM resources WHERE id=?1", [id], map_row)
-        .map_err(Into::into)
+    let id = tx.last_insert_rowid();
+    let r = tx.query_row("SELECT * FROM resources WHERE id=?1", [id], map_row)?;
+    tx.commit()?;
+    Ok(r)
 }
 
 /// Only resources attached directly to a thread.
@@ -73,7 +76,7 @@ pub fn list_by_thread(conn: &Connection, thread_id: i64) -> Result<Vec<Resource>
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-/// ALL resources for a project — project-level AND every thread's resources (aggregated).
+/// All resources for a project (project-level and thread-scoped).
 pub fn list_by_project(conn: &Connection, project_id: i64) -> Result<Vec<Resource>> {
     let mut stmt =
         conn.prepare("SELECT * FROM resources WHERE project_id=?1 ORDER BY created_at")?;
@@ -81,6 +84,7 @@ pub fn list_by_project(conn: &Connection, project_id: i64) -> Result<Vec<Resourc
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Delete a resource by id. Returns `NotFound` if it doesn't exist.
 pub fn delete(conn: &Connection, id: i64) -> Result<()> {
     let n = conn.execute("DELETE FROM resources WHERE id=?1", [id])?;
     if n == 0 {
@@ -136,7 +140,7 @@ mod tests {
         let (pid, tid) = setup(&mut db);
         let url = lookup::id_for_key(&db.conn, "resource_types", "url").unwrap();
         add(
-            &db.conn,
+            &mut db.conn,
             NewResource {
                 project_id: pid,
                 thread_id: None,
@@ -147,7 +151,7 @@ mod tests {
         )
         .unwrap();
         add(
-            &db.conn,
+            &mut db.conn,
             NewResource {
                 project_id: pid,
                 thread_id: Some(tid),
@@ -167,7 +171,7 @@ mod tests {
         let (pid, _tid) = setup(&mut db);
         let url = lookup::id_for_key(&db.conn, "resource_types", "url").unwrap();
         let r = add(
-            &db.conn,
+            &mut db.conn,
             NewResource {
                 project_id: pid,
                 thread_id: Some(999),
@@ -177,5 +181,28 @@ mod tests {
             },
         );
         assert!(matches!(r, Err(AnchorError::Invalid(_))));
+    }
+
+    #[test]
+    fn delete_existing_then_missing() {
+        let mut db = Db::open_in_memory().unwrap();
+        let (pid, _tid) = setup(&mut db);
+        let url = lookup::id_for_key(&db.conn, "resource_types", "url").unwrap();
+        let r = add(
+            &mut db.conn,
+            NewResource {
+                project_id: pid,
+                thread_id: None,
+                type_id: url,
+                label: "x".into(),
+                value: "y".into(),
+            },
+        )
+        .unwrap();
+        delete(&db.conn, r.id).unwrap();
+        assert!(matches!(
+            delete(&db.conn, r.id),
+            Err(AnchorError::NotFound(_))
+        ));
     }
 }

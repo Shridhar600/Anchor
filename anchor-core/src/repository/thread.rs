@@ -2,6 +2,7 @@ use crate::error::{AnchorError, Result};
 use crate::models::Thread;
 use rusqlite::{Connection, OptionalExtension};
 
+/// Input for creating a new thread (ticket).
 pub struct NewThread {
     pub project_id: i64,
     pub title: String,
@@ -29,8 +30,9 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<Thread> {
     })
 }
 
+/// Create a thread with an auto-generated ticket key and order.
 pub fn create(conn: &mut Connection, t: NewThread) -> Result<Thread> {
-    let tx = conn.transaction()?;
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
 
     let project_key: Option<String> = tx
         .query_row(
@@ -69,6 +71,7 @@ pub fn create(conn: &mut Connection, t: NewThread) -> Result<Thread> {
     get(conn, id)
 }
 
+/// Get a thread by its ticket key (e.g. "DEVOS-1").
 pub fn get_by_ticket_key(conn: &Connection, ticket_key: &str) -> Result<Thread> {
     conn.query_row(
         "SELECT * FROM threads WHERE ticket_key=?1",
@@ -79,12 +82,14 @@ pub fn get_by_ticket_key(conn: &Connection, ticket_key: &str) -> Result<Thread> 
     .ok_or_else(|| AnchorError::NotFound(format!("thread '{ticket_key}'")))
 }
 
+/// Get a thread by its numeric id.
 pub fn get(conn: &Connection, id: i64) -> Result<Thread> {
     conn.query_row("SELECT * FROM threads WHERE id=?1", [id], map_row)
         .optional()?
         .ok_or_else(|| AnchorError::NotFound(format!("thread {id}")))
 }
 
+/// List threads in a project, grouped by status then order.
 pub fn list_by_project(conn: &Connection, project_id: i64) -> Result<Vec<Thread>> {
     let mut stmt =
         conn.prepare("SELECT * FROM threads WHERE project_id=?1 ORDER BY status_id, \"order\"")?;
@@ -92,6 +97,7 @@ pub fn list_by_project(conn: &Connection, project_id: i64) -> Result<Vec<Thread>
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Update a thread's status. Returns `NotFound` if the thread doesn't exist.
 pub fn update_status(conn: &Connection, id: i64, status_id: i64) -> Result<()> {
     let n = conn.execute(
         "UPDATE threads SET status_id=?2, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?1",
@@ -103,6 +109,7 @@ pub fn update_status(conn: &Connection, id: i64, status_id: i64) -> Result<()> {
     Ok(())
 }
 
+/// Update a thread's mutable fields. Returns `NotFound` if the id doesn't exist.
 pub fn update(conn: &Connection, t: &Thread) -> Result<()> {
     let n = conn.execute(
         "UPDATE threads SET title=?2, description=?3, type_id=?4, status_id=?5, priority_id=?6,
@@ -221,5 +228,44 @@ mod tests {
         let found = get_by_ticket_key(&db.conn, &t.ticket_key).unwrap();
         assert_eq!(found.id, t.id);
         assert!(get_by_ticket_key(&db.conn, "NOPE-1").is_err());
+    }
+
+    #[test]
+    fn delete_removes_notes_and_resources() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let nt = new_thread(&db.conn, pid);
+        let t = create(&mut db.conn, nt).unwrap();
+        let kind = lookup::id_for_key(&db.conn, "note_kinds", "log").unwrap();
+        crate::repository::note::add(
+            &mut db.conn,
+            crate::repository::note::NewNote {
+                thread_id: t.id,
+                author: crate::models::NoteAuthor::User,
+                author_name: None,
+                kind_id: kind,
+                body: "n".into(),
+            },
+        )
+        .unwrap();
+        delete(&mut db.conn, t.id).unwrap();
+        let n: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM thread_notes WHERE thread_id=?1",
+                [t.id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn update_status_missing_is_not_found() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(matches!(
+            update_status(&db.conn, 999, 1),
+            Err(AnchorError::NotFound(_))
+        ));
     }
 }

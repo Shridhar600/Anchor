@@ -1,5 +1,6 @@
 use rusqlite_migration::{Migrations, M};
 
+/// Return the ordered list of schema and seed migrations.
 pub fn migrations() -> Migrations<'static> {
     Migrations::new(vec![
         // --- v1: schema ---
@@ -133,6 +134,15 @@ pub fn migrations() -> Migrations<'static> {
                 summary     TEXT NOT NULL
             );
             CREATE INDEX idx_command_log_ts ON command_log(ts);
+        "#,
+        ),
+        // --- v4: query-tuned indexes ---
+        M::up(
+            r#"
+            DROP INDEX idx_command_log_ts;
+            CREATE INDEX idx_command_log_ts_id ON command_log(ts DESC, id DESC);
+            CREATE INDEX idx_threads_project_status_order ON threads(project_id, status_id, "order");
+            CREATE INDEX idx_notes_thread_kind ON thread_notes(thread_id, kind_id);
         "#,
         ),
     ])

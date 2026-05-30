@@ -33,7 +33,7 @@ fn add(ctx: &Context, a: ProjectAddArgs) -> Result<i32, CliError> {
         &format!("{} created: {}", p.key, p.name),
     )?;
     if ctx.json {
-        println!("{}", serde_json::to_string_pretty(&p).expect("serialize"));
+        crate::output::emit_json(&p)?;
     } else {
         println!("Created project {} ({})", p.key, p.name);
     }
@@ -43,10 +43,7 @@ fn add(ctx: &Context, a: ProjectAddArgs) -> Result<i32, CliError> {
 fn list(ctx: &Context) -> Result<i32, CliError> {
     let projects = project::list(&ctx.db.conn)?;
     if ctx.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&projects).expect("serialize")
-        );
+        crate::output::emit_json(&projects)?;
     } else if projects.is_empty() {
         println!("No projects yet.");
     } else {
@@ -67,10 +64,7 @@ fn show(ctx: &Context, key: &str) -> Result<i32, CliError> {
             "threads": threads,
             "resources": resources,
         });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&view).expect("serialize")
-        );
+        crate::output::emit_json(&view)?;
     } else {
         println!("{} — {}  [{}]", p.key, p.name, p.status.as_str());
         if let Some(d) = &p.description {

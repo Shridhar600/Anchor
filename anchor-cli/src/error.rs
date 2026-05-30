@@ -4,6 +4,7 @@ use std::fmt;
 pub enum CliError {
     Core(anchor_core::AnchorError),
     Io(std::io::Error),
+    Serialize(serde_json::Error),
 }
 
 impl CliError {
@@ -20,6 +21,7 @@ impl fmt::Display for CliError {
         match self {
             CliError::Core(e) => write!(f, "{e}"),
             CliError::Io(e) => write!(f, "{e}"),
+            CliError::Serialize(e) => write!(f, "{e}"),
         }
     }
 }
@@ -33,5 +35,11 @@ impl From<anchor_core::AnchorError> for CliError {
 impl From<std::io::Error> for CliError {
     fn from(e: std::io::Error) -> Self {
         CliError::Io(e)
+    }
+}
+
+impl From<serde_json::Error> for CliError {
+    fn from(e: serde_json::Error) -> Self {
+        CliError::Serialize(e)
     }
 }

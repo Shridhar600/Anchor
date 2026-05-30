@@ -11,7 +11,7 @@ pub fn handle(ctx: &mut Context, cmd: NoteCmd) -> Result<i32, CliError> {
     }
 }
 
-fn add(ctx: &Context, a: NoteAddArgs) -> Result<i32, CliError> {
+fn add(ctx: &mut Context, a: NoteAddArgs) -> Result<i32, CliError> {
     let t = thread::get_by_ticket_key(&ctx.db.conn, &a.thread)?;
     let kind_id = lookup::id_for_key(
         &ctx.db.conn,
@@ -19,7 +19,7 @@ fn add(ctx: &Context, a: NoteAddArgs) -> Result<i32, CliError> {
         a.kind.as_deref().unwrap_or("log"),
     )?;
     let author = match a.author.as_deref() {
-        Some(s) => NoteAuthor::from_str(s)?,
+        Some(s) => s.parse()?,
         None => {
             if ctx.actor != "cli" {
                 NoteAuthor::Agent
@@ -36,7 +36,7 @@ fn add(ctx: &Context, a: NoteAddArgs) -> Result<i32, CliError> {
         }
     });
     let n = note::add(
-        &ctx.db.conn,
+        &mut ctx.db.conn,
         note::NewNote {
             thread_id: t.id,
             author,
@@ -45,6 +45,11 @@ fn add(ctx: &Context, a: NoteAddArgs) -> Result<i32, CliError> {
             body: a.body,
         },
     )?;
+    if ctx.json {
+        crate::output::emit_json(&n)?;
+    } else {
+        println!("Added note to {}", a.thread);
+    }
     audit::record(
         ctx,
         "note.add",
@@ -52,10 +57,5 @@ fn add(ctx: &Context, a: NoteAddArgs) -> Result<i32, CliError> {
         Some(&a.thread),
         &format!("note on {}", a.thread),
     )?;
-    if ctx.json {
-        println!("{}", serde_json::to_string_pretty(&n).expect("serialize"));
-    } else {
-        println!("Added note to {}", a.thread);
-    }
     Ok(0)
 }

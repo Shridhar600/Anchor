@@ -2,6 +2,8 @@
 name = "anchor-core"
 version = "0.1.0"
 edition = "2021"
+description = "Anchor — local-first dev project & thread tracker (data layer)."
+repository = "https://github.com/Shridhar600/Anchor"
 
 [dependencies]
 rusqlite = { version = "=0.39.0", features = ["bundled"] }
