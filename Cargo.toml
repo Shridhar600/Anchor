@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["anchor-core", "anchor-cli"]
+members = ["anchor-core", "anchor-cli", "src-tauri"]
 
 [profile.release]
 opt-level = 3

@@ -76,6 +76,23 @@ pub fn list_by_thread(conn: &Connection, thread_id: i64) -> Result<Vec<Resource>
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// All resources for a thread: thread-scoped + project-scoped (project-level
+/// resources are surfaced alongside thread resources when viewing a single
+/// thread).
+pub fn list_visible_for_thread(
+    conn: &Connection,
+    thread_id: i64,
+    project_id: i64,
+) -> Result<Vec<Resource>> {
+    let mut stmt = conn.prepare(
+        "SELECT * FROM resources
+         WHERE thread_id = ?1 OR (thread_id IS NULL AND project_id = ?2)
+         ORDER BY created_at",
+    )?;
+    let rows = stmt.query_map([thread_id, project_id], map_row)?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 /// All resources for a project (project-level and thread-scoped).
 pub fn list_by_project(conn: &Connection, project_id: i64) -> Result<Vec<Resource>> {
     let mut stmt =
@@ -109,6 +126,7 @@ mod tests {
                 description: None,
                 local_path: None,
                 git_remote: None,
+                icon: None,
                 status: ProjectStatus::Active,
             },
         )
@@ -204,5 +222,39 @@ mod tests {
             delete(&db.conn, r.id),
             Err(AnchorError::NotFound(_))
         ));
+    }
+
+    #[test]
+    fn list_visible_for_thread_aggregates_scopes() {
+        let mut db = Db::open_in_memory().unwrap();
+        let (pid, tid) = setup(&mut db);
+        let url = lookup::id_for_key(&db.conn, "resource_types", "url").unwrap();
+        add(
+            &mut db.conn,
+            NewResource {
+                project_id: pid,
+                thread_id: Some(tid),
+                type_id: url,
+                label: "thread-scoped".into(),
+                value: "a".into(),
+            },
+        )
+        .unwrap();
+        add(
+            &mut db.conn,
+            NewResource {
+                project_id: pid,
+                thread_id: None,
+                type_id: url,
+                label: "project-scoped".into(),
+                value: "b".into(),
+            },
+        )
+        .unwrap();
+        let visible = list_visible_for_thread(&db.conn, tid, pid).unwrap();
+        let labels: Vec<&str> = visible.iter().map(|r| r.label.as_str()).collect();
+        assert!(labels.contains(&"thread-scoped"));
+        assert!(labels.contains(&"project-scoped"));
+        assert_eq!(visible.len(), 2);
     }
 }

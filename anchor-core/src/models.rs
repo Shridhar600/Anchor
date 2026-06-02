@@ -2,9 +2,10 @@ use crate::error::{AnchorError, Result};
 use serde::Serialize;
 
 /// Whether a project is active, archived, or just an idea.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectStatus {
+    #[default]
     Active,
     Archived,
     Idea,
@@ -79,6 +80,7 @@ pub struct Project {
     pub description: Option<String>,
     pub local_path: Option<String>,
     pub git_remote: Option<String>,
+    pub icon: Option<String>,
     pub status: ProjectStatus,
     pub thread_counter: i64,
     pub created_at: String,

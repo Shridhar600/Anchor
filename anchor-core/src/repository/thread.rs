@@ -2,6 +2,15 @@ use crate::error::{AnchorError, Result};
 use crate::models::Thread;
 use rusqlite::{Connection, OptionalExtension};
 
+fn ensure_title_is_not_empty(title: &str) -> Result<()> {
+    if title.trim().is_empty() {
+        return Err(AnchorError::Invalid(
+            "thread title must not be empty".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Input for creating a new thread (ticket).
 pub struct NewThread {
     pub project_id: i64,
@@ -32,6 +41,8 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<Thread> {
 
 /// Create a thread with an auto-generated ticket key and order.
 pub fn create(conn: &mut Connection, t: NewThread) -> Result<Thread> {
+    ensure_title_is_not_empty(&t.title)?;
+
     let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
 
     let project_key: Option<String> = tx
@@ -97,6 +108,14 @@ pub fn list_by_project(conn: &Connection, project_id: i64) -> Result<Vec<Thread>
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// List all threads, grouped by status then order. Used by the UI's
+/// "All threads" view.
+pub fn list_all(conn: &Connection) -> Result<Vec<Thread>> {
+    let mut stmt = conn.prepare("SELECT * FROM threads ORDER BY status_id, \"order\"")?;
+    let rows = stmt.query_map([], map_row)?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 /// Update a thread's status. Returns `NotFound` if the thread doesn't exist.
 pub fn update_status(conn: &Connection, id: i64, status_id: i64) -> Result<()> {
     let n = conn.execute(
@@ -111,6 +130,7 @@ pub fn update_status(conn: &Connection, id: i64, status_id: i64) -> Result<()> {
 
 /// Update a thread's mutable fields. Returns `NotFound` if the id doesn't exist.
 pub fn update(conn: &Connection, t: &Thread) -> Result<()> {
+    ensure_title_is_not_empty(&t.title)?;
     let n = conn.execute(
         "UPDATE threads SET title=?2, description=?3, type_id=?4, status_id=?5, priority_id=?6,
          git_branch=?7, \"order\"=?8, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?1",
@@ -160,6 +180,7 @@ mod tests {
                 description: None,
                 local_path: None,
                 git_remote: None,
+                icon: None,
                 status: ProjectStatus::Active,
             },
         )
@@ -267,5 +288,89 @@ mod tests {
             update_status(&db.conn, 999, 1),
             Err(AnchorError::NotFound(_))
         ));
+    }
+
+    #[test]
+    fn create_rejects_empty_title() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let mut nt = new_thread(&db.conn, pid);
+        nt.title = "".into();
+        let err = create(&mut db.conn, nt).unwrap_err();
+        assert!(
+            matches!(err, AnchorError::Invalid(ref m) if m == "thread title must not be empty")
+        );
+    }
+
+    #[test]
+    fn create_rejects_whitespace_only_title() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let mut nt = new_thread(&db.conn, pid);
+        nt.title = "   \t\n  ".into();
+        let err = create(&mut db.conn, nt).unwrap_err();
+        assert!(
+            matches!(err, AnchorError::Invalid(ref m) if m == "thread title must not be empty")
+        );
+    }
+
+    #[test]
+    fn create_with_valid_title_succeeds() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let mut nt = new_thread(&db.conn, pid);
+        nt.title = "Real title".into();
+        let t = create(&mut db.conn, nt).unwrap();
+        assert_eq!(t.title, "Real title");
+    }
+
+    #[test]
+    fn create_rejection_does_not_consume_thread_counter() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let mut bad = new_thread(&db.conn, pid);
+        bad.title = "".into();
+        assert!(create(&mut db.conn, bad).is_err());
+        let counter: i64 = db
+            .conn
+            .query_row(
+                "SELECT thread_counter FROM projects WHERE id=?1",
+                [pid],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(counter, 0);
+        let good = new_thread(&db.conn, pid);
+        let t = create(&mut db.conn, good).unwrap();
+        assert_eq!(t.ticket_key, "DEVOS-1");
+    }
+
+    #[test]
+    fn update_rejects_empty_title() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let nt = new_thread(&db.conn, pid);
+        let mut t = create(&mut db.conn, nt).unwrap();
+        t.title = "".into();
+        let err = update(&db.conn, &t).unwrap_err();
+        assert!(
+            matches!(err, AnchorError::Invalid(ref m) if m == "thread title must not be empty")
+        );
+    }
+
+    #[test]
+    fn list_all_returns_threads_across_projects() {
+        let mut db = Db::open_in_memory().unwrap();
+        let pid = setup(&db);
+        let mut nt = new_thread(&db.conn, pid);
+        nt.title = "first".into();
+        create(&mut db.conn, nt).unwrap();
+        let mut nt2 = new_thread(&db.conn, pid);
+        nt2.title = "second".into();
+        create(&mut db.conn, nt2).unwrap();
+        let all = list_all(&db.conn).unwrap();
+        assert_eq!(all.len(), 2);
+        let titles: Vec<&str> = all.iter().map(|t| t.title.as_str()).collect();
+        assert!(titles.contains(&"first") && titles.contains(&"second"));
     }
 }

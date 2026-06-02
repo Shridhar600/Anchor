@@ -1,0 +1,27 @@
+[package]
+name = "anchor-app"
+version = "0.1.0"
+edition = "2021"
+description = "Anchor — local-first dev project & thread tracker (desktop app)."
+repository = "https://github.com/Shridhar600/Anchor"
+publish = false
+
+[lib]
+name = "anchor_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "anchor-app"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "=2.6.2", features = [] }
+
+[dependencies]
+anchor-core = { path = "../anchor-core" }
+directories = "=6.0.0"
+rusqlite = { version = "=0.39.0", features = ["bundled"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+tauri = { version = "=2.11.2", features = [] }
+tauri-plugin-dialog = "=2.7.1"
+tauri-plugin-opener = "=2.5.4"
