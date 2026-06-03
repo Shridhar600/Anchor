@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Icon, TYPE_TONE, toneBg, fmtTime } from "./lib/ui";
 import { COLUMNS, TYPE_META } from "./lib/meta";
+import { repoLabel, pathLabel } from "./lib/format";
 import * as api from "./lib/api";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -1052,46 +1053,32 @@ export default function App() {
               )}
 
               <footer className="appfoot">
-                {isAll ? (
-                  <span className="af-item">
-                    <Icon name="layers" size={12} />
-                    {scopeThreads.length} threads · {projectCount} projects
-                  </span>
-                ) : (
-                  <>
-                    {project?.path ? (
-                      <button
-                        className="af-item af-link"
-                        onClick={() => {
-                          if (!project.path) return;
-                          revealItemInDir(project.path).catch((e) =>
-                            fail(`Couldn't reveal in Finder: ${String(e)}`)
-                          );
-                        }}
-                        title="Reveal in Finder"
-                      >
-                        <Icon name="folder-git-2" size={12} />
-                        {project.path}
-                      </button>
-                    ) : (
-                      <span className="af-item af-muted">
-                        <Icon name="folder-git-2" size={12} />
-                        No local path
+                <div className="statusbar">
+                  {isAll ? (
+                    <>
+                      <span className="sb-seg sb-muted">
+                        <Icon name="layers" size={12} />
+                        {scopeThreads.length} threads · {projectCount} projects
                       </span>
-                    )}
-                    <span className="af-dot">·</span>
-                    <span className="af-item">
-                      <Icon name="git-branch" size={12} />
-                      {project?.branch || "—"}
-                    </span>
-                    {project?.remote && (
-                      <>
-                        <span className="af-dot">·</span>
+                    </>
+                  ) : project ? (
+                    <>
+                      {project.branch ? (
+                        <span
+                          className="sb-seg sb-muted"
+                          title={project.branch}
+                        >
+                          <Icon name="git-branch" size={12} />
+                          {project.branch}
+                        </span>
+                      ) : null}
+                      {project.remote ? (
                         <button
-                          className="af-item af-link"
+                          className="sb-seg sb-act"
+                          title={project.remote}
                           onClick={() => {
-                            if (!project.remote) return;
                             const raw = project.remote.trim();
+                            if (!raw) return;
                             const url = /^https?:\/\//.test(raw)
                               ? raw
                               : `https://${raw}`;
@@ -1099,20 +1086,38 @@ export default function App() {
                               fail(`Couldn't open URL: ${String(e)}`)
                             );
                           }}
-                          title="Open remote in browser"
                         >
-                          <Icon name="github" size={12} />
-                          {project.remote}
+                          <Icon name="globe" size={12} />
+                          {repoLabel(project.remote)}
                         </button>
-                      </>
-                    )}
-                  </>
-                )}
-                <span style={{ flex: 1 }} />
-                <span className="af-item af-muted">
-                  <Icon name="hard-drive" size={12} />
-                  Local-first · synced to disk
-                </span>
+                      ) : null}
+                      {project.path ? (
+                        <button
+                          className="sb-seg sb-act"
+                          title={project.path}
+                          onClick={() => {
+                            if (!project.path) return;
+                            revealItemInDir(project.path).catch((e) =>
+                              fail(`Couldn't reveal in Finder: ${String(e)}`)
+                            );
+                          }}
+                        >
+                          <Icon name="folder" size={12} />
+                          {pathLabel(project.path)}
+                        </button>
+                      ) : !project.remote && !project.branch ? (
+                        <span className="sb-seg sb-muted">
+                          Ideation · no repo linked
+                        </span>
+                      ) : null}
+                    </>
+                  ) : null}
+                  <span className="sb-spacer" />
+                  <span className="sb-seg sb-sync sb-muted">
+                    <span className="sb-sync-dot" />
+                    Saved locally
+                  </span>
+                </div>
               </footer>
             </>
           )}

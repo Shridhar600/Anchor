@@ -25,3 +25,16 @@ serde = { version = "=1.0.228", features = ["derive"] }
 tauri = { version = "=2.11.2", features = [] }
 tauri-plugin-dialog = "=2.7.1"
 tauri-plugin-opener = "=2.5.4"
+
+# macOS-only: direct deps for the runtime traffic-light position fix in
+# src/macos.rs. The versions below match the ones tauri 2.11.2 already pulls
+# in transitively, so the dep tree remains single-version.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.4"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = [
+  "NSView",
+  "NSWindow",
+] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = [
+  "NSGeometry",
+] }

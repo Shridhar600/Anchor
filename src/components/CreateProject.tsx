@@ -3,6 +3,7 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Icon } from "../lib/ui";
 import { IconPicker } from "./IconPicker";
+import { FileField } from "./Resource";
 import { pushToast } from "./Overlays";
 import type { Project } from "../lib/types";
 
@@ -43,7 +44,7 @@ export function CreateProject({
 
   const handleBrowsePath = async () => {
     try {
-      const result = await open({ directory: true });
+      const result = await open({ multiple: false, directory: true });
       if (result === null) return;
       setPath(result as string);
     } catch (e) {
@@ -53,14 +54,16 @@ export function CreateProject({
 
   const submit = () => {
     if (!valid) return;
+    const trimmedPath = path.trim();
     onCreate({
       key: effectiveKey,
       name: name.trim(),
       icon,
       description: description.trim() || "No description yet.",
-      path: path.trim(),
+      path: trimmedPath,
       remote: remote.trim(),
-      branch: "main",
+      // No path = ideation project; don't invent a branch
+      branch: trimmedPath ? "main" : "",
       status: "active",
       started: new Date().toISOString().slice(0, 10),
     });
@@ -134,24 +137,17 @@ export function CreateProject({
             <label className="field-label">
               Local path <span className="field-opt">optional</span>
             </label>
-            <div className="field-input-wrap">
-              <Icon name="folder" size={15} />
-              <input
-                className="field-input mono"
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-                placeholder="~/Dev/Projects/aurora"
-              />
-              <button
-                className="ghost-btn field-browse"
-                type="button"
-                onClick={handleBrowsePath}
-                title="Browse for folder"
-                aria-label="Browse for folder"
-              >
-                Browse…
-              </button>
-            </div>
+            <FileField
+              kind="folder"
+              value={path}
+              onPick={handleBrowsePath}
+              onClear={() => setPath("")}
+            />
+            {!path && (
+              <div className="field-hint">
+                Leave empty for an ideation project — you can link a repo later.
+              </div>
+            )}
           </div>
 
           <div className="field">
@@ -159,7 +155,7 @@ export function CreateProject({
               Git remote <span className="field-opt">optional</span>
             </label>
             <div className="field-input-wrap">
-              <Icon name="git-branch" size={15} />
+              <Icon name="globe" size={15} />
               <input
                 className="field-input mono"
                 value={remote}

@@ -8,10 +8,9 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 #root { height: 100vh; }
 
 /* ===== Tweakable feel: Density + Material (driven by Tweaks.jsx) ========= */
-/* DENSITY — compact / default / roomy reshape padding, gaps and column width */
-/* NOTE: .topbar height is intentionally NOT changed per density — it is fixed
-   (54px, see base rule) so the native macOS traffic lights (positioned at a fixed
-   trafficLightPosition.y) stay vertically centered regardless of density. */
+/* DENSITY — compact / default / roomy reshape padding, gaps and column width.
+   NOTE: topbar height is intentionally NOT density-driven — it stays fixed so the
+   macOS native traffic lights (positioned by the OS at a fixed Y) stay aligned. */
 [data-density="compact"] .card { padding: 8px 10px 8px; gap: 6px; }
 [data-density="compact"] .card-title { font-size: var(--fs-sm); }
 [data-density="compact"] .col { width: 252px; }
@@ -219,7 +218,11 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 
 /* macOS window controls + collapse toggle */
 .winctl { display: flex; align-items: center; gap: 14px; -webkit-user-select: none; user-select: none; }
-/* Fake traffic-light dot styles removed — macOS native lights are used (titleBarStyle Overlay). */
+.tb-lights { display: flex; gap: 8px; }
+.tb-light { width: 12px; height: 12px; border-radius: 999px; }
+.tb-light.r { background: #ED6A5E; }
+.tb-light.y { background: #F4BE4F; }
+.tb-light.g { background: #61C554; }
 .tb-toggle {
   background: none; border: none; cursor: pointer; color: var(--fg-3);
   display: flex; padding: 5px; border-radius: 7px;
@@ -924,18 +927,28 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 /* ===== Sleek footer ===================================================== */
 .appfoot {
   flex-shrink: 0; height: 30px;
-  display: flex; align-items: center; gap: 9px;
-  padding: 0 18px; background: var(--bg-2);
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 8px; background: var(--bg-2);
   border-top: 1px solid var(--border);
   font-size: var(--fs-xs); color: var(--fg-3);
 }
-.af-item { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
-.af-item svg { width: 12px; height: 12px; stroke-width: 1.8; color: var(--fg-3); }
-.af-link { color: var(--fg-3); text-decoration: none; }
-.af-link:hover { color: var(--accent); }
-.af-link:hover svg { color: var(--accent); }
-.af-dot { color: var(--border-strong); }
-.af-muted { font-family: var(--font-sans); opacity: 0.85; }
+/* status bar — VS Code-style icon-led segments, hover-highlight, no dividers */
+.statusbar { display: flex; align-items: center; gap: 1px; min-width: 0; }
+.sb-seg {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 22px; padding: 0 8px; border-radius: 6px;
+  font-size: var(--fs-xs); color: var(--fg-3); white-space: nowrap;
+  background: none; border: none; font-family: var(--font-sans);
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-seg svg { width: 13px; height: 13px; stroke-width: 1.8; color: var(--fg-3); flex-shrink: 0; }
+.sb-act { cursor: pointer; transition: background 120ms ease, color 120ms ease; }
+.sb-act:hover { background: var(--fill); color: var(--fg-1); }
+.sb-act:hover svg { color: var(--fg-2); }
+.sb-muted { cursor: default; }
+.sb-spacer { flex: 1; }
+.sb-sync { cursor: default; gap: 7px; font-family: var(--font-sans); }
+.sb-sync-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--success); flex-shrink: 0; box-shadow: 0 0 0 3px var(--success-soft); }
 
 /* ===== ghost button (shared) =========================================== */
 .ghost-btn {
@@ -1295,28 +1308,93 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 .res:hover .res-del { opacity: 1; }
 .res-del:hover { background: var(--error-soft); color: var(--error); }
 
-/* ===== macOS titlebar integration ====================================== */
-/* Native traffic lights sit at x=16, y=21 (Tauri titleBarStyle: Overlay),
-   centered in the 54px topbar. We clear space for them in two zones:
-   1. Sidebar header (.sb-winctl): left-pad ~76px so the collapse button doesn't
-      sit under the lights (they overlap the sidebar top-left corner).
-   2. Topbar when sidebar is collapsed (.topbar-left--sb-off): ~76px left inset.
-
-   NOTE: dragging is NOT done via CSS. `-webkit-app-region` is a Chromium/Electron
-   property and is a no-op in macOS WKWebView (per RCA docs/reviews/titlebar-rca.md).
-   The window drag is handled by a JS mousedown handler in App.tsx that calls
-   window.startDragging() for clicks inside a [data-tauri-drag-region] element. */
-
-/* Sidebar header — left padding to clear the native lights */
-.sb-winctl {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 10px 6px 10px 76px; /* 76px left = 16px light x + ~60px width */
+/* ===== Browse button + chosen-path display (composer + create + overview) === */
+/* ===== FileField — form-grade file/folder picker (composer + create) ==== */
+.filefield {
+  display: flex; align-items: center; gap: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+  height: 38px; overflow: hidden; transition: border-color 120ms ease, box-shadow 120ms ease;
 }
-
-/* When sidebar is collapsed, the lights are over the topbar-left.
-   Add left inset so the toggle button clears them. */
-.topbar-left--sb-off {
-  padding-left: 76px;
+.filefield:hover { border-color: var(--border-strong); }
+.filefield.is-chosen { border-color: var(--border-strong); }
+.filefield-ic { display: inline-flex; align-items: center; padding-left: 11px; color: var(--fg-3); flex-shrink: 0; }
+.filefield-ic svg { stroke-width: 1.8; }
+.filefield-ph { flex: 1; padding: 0 11px; font-size: var(--fs-base); color: var(--fg-3); }
+.filefield-path { flex: 1; padding: 0 11px; font-size: var(--fs-sm); color: var(--fg-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filefield-clear {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 28px; height: 100%; background: none; border: none; color: var(--fg-3); cursor: pointer;
 }
+.filefield-clear:hover { color: var(--fg-1); background: var(--fill); }
+.filefield-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 100%;
+  padding: 0 13px; background: var(--fill); border: none; border-left: 1px solid var(--border);
+  color: var(--fg-1); font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 500; cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.filefield-btn:hover { background: var(--selected); }
+.filefield-btn svg { stroke-width: 1.8; color: var(--fg-3); }
+.filefield-btn:hover svg { color: var(--fg-1); }
+
+/* ===== Overview: inline metadata strip (path / remote) ================= */
+/* ===== Overview: icon-only metadata cluster (path / remote) ============ */
+.ov-head-meta { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.ov-metaitem { position: relative; }
+.ov-metabtn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer;
+  background: transparent; border: 1px solid transparent; color: var(--fg-3);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.ov-metabtn:hover { background: var(--fill); color: var(--fg-1); }
+.ov-metabtn.is-set { color: var(--fg-2); }
+.ov-metabtn.is-open { background: var(--fill); color: var(--fg-1); border-color: var(--border-strong); }
+.ov-metabtn svg { stroke-width: 1.8; }
+.ov-metabtn.is-empty { color: var(--fg-3); opacity: 0.65; }
+.ov-metabtn.is-empty:hover { opacity: 1; }
+.ov-metabtn-add {
+  position: absolute; right: 3px; bottom: 3px; display: inline-flex; align-items: center; justify-content: center;
+  width: 12px; height: 12px; border-radius: 999px; background: var(--bg-1); color: var(--fg-2);
+}
+.ov-metabtn-add svg { stroke-width: 2.5; }
+.ov-metabtn.is-set::after {
+  content: ''; position: absolute; right: 5px; top: 5px; width: 5px; height: 5px; border-radius: 999px;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--surface);
+}
+.ov-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 260px; max-width: 340px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: var(--shadow-lg); padding: 12px; animation: pop-in 130ms ease;
+}
+.ov-pop-label { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-3); margin-bottom: 7px; }
+.ov-pop-val { font-size: var(--fs-sm); color: var(--fg-1); word-break: break-all; line-height: 1.5; }
+.ov-pop-actions { display: flex; align-items: center; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.ov-pop-act {
+  display: inline-flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: var(--fs-sm); color: var(--fg-2); padding: 5px 8px; border-radius: 7px;
+}
+.ov-pop-act:hover { background: var(--fill); color: var(--fg-1); }
+.ov-pop-act svg { stroke-width: 1.8; color: var(--fg-3); }
+.ov-pop-act:hover svg { color: var(--fg-2); }
+.ov-pop-edit { display: flex; flex-direction: column; gap: 8px; }
+.ov-pop-input {
+  width: 100%; box-sizing: border-box; background: var(--bg-1); border: 1px solid var(--accent); border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--accent-soft); padding: 7px 10px; outline: none;
+  font-family: var(--font-sans); font-size: var(--fs-sm); color: var(--fg-1);
+}
+.ov-pop-browse {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; align-self: flex-start;
+  background: var(--fill); border: 1px solid var(--border-strong); border-radius: 8px;
+  color: var(--fg-1); font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 500; padding: 6px 11px; cursor: pointer;
+}
+.ov-pop-browse:hover { background: var(--selected); }
+.ov-pop-browse svg { stroke-width: 1.8; color: var(--fg-3); }
+
+/* ===== New-thread DRAFT state (detail panel) =========================== */
+.dp-draft { padding-top: 8px; }
+.dp-draft-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--accent); margin-bottom: 12px; }
+.dp-draft-eyebrow svg { stroke-width: 1.8; }
+.dp-draft-hint { font-size: var(--fs-base); color: var(--fg-3); line-height: 1.55; margin: 12px 0 0; text-wrap: pretty; max-width: 46ch; }
+.dp-draft-preview { display: flex; flex-direction: column; gap: 2px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+.dp-draft-prow { display: flex; align-items: center; gap: 11px; padding: 9px 0; font-size: var(--fs-base); color: var(--fg-3); }
+.dp-draft-prow svg { stroke-width: 1.8; color: var(--fg-3); opacity: 0.7; }

@@ -465,6 +465,31 @@ export function DetailPanel({
           />
         ) : loading ? (
           <SkeletonDetail />
+        ) : isDraft ? (
+          <div className="dp-body dp-draft">
+            <div className="dp-draft-eyebrow">
+              <Icon name="git-branch" size={13} />
+              New thread
+            </div>
+            <EditableTitle
+              value={thread.title}
+              onSave={(v) => onSaveTitle(thread.ticket, v)}
+            />
+            <p className="dp-draft-hint">
+              Name your thread to create it. The note log and resources appear
+              once it exists.
+            </p>
+            <div className="dp-draft-preview">
+              <div className="dp-draft-prow">
+                <Icon name="messages-square" size={15} />
+                <span>Append-only note log</span>
+              </div>
+              <div className="dp-draft-prow">
+                <Icon name="paperclip" size={15} />
+                <span>Files, links, and docs</span>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="dp-body">
             <EditableTitle
@@ -500,89 +525,81 @@ export function DetailPanel({
               onSave={(v) => onSaveDescription(thread.ticket, v)}
             />
 
-            {isDraft ? (
-              <p className="dp-draft-hint">
-                Notes and resources are available once the thread is created.
-              </p>
-            ) : (
-              <>
-                <div className="dp-sec-head">
-                  <h3>Note log</h3>
-                  <span className="dp-sec-count">{thread.notes.length}</span>
-                  <span className="line" />
-                </div>
+            <div className="dp-sec-head">
+              <h3>Note log</h3>
+              <span className="dp-sec-count">{thread.notes.length}</span>
+              <span className="line" />
+            </div>
 
-                <NoteComposer onAppend={(n) => onAppendNote(thread.ticket, n)} />
-                <div className="log">
-                  {shown.map((n, i) => (
-                    <NoteItem key={n.at + i} note={n} actorName={actorName} />
-                  ))}
-                </div>
-                {hiddenCount > 0 && !showAll && (
-                  <button className="log-more" onClick={() => setShowAll(true)}>
-                    <Icon name="chevron-down" size={14} />
-                    Show {hiddenCount} earlier {hiddenCount === 1 ? "note" : "notes"}
-                  </button>
-                )}
-                {showAll && hiddenCount > 0 && (
-                  <button className="log-more" onClick={() => setShowAll(false)}>
-                    <Icon name="chevron-up" size={14} />
-                    Collapse history
-                  </button>
-                )}
-
-                <div className="dp-sec-head">
-                  <h3>Resources</h3>
-                  <span className="dp-sec-count">{threadRes.length}</span>
-                  <span className="line" />
-                  <button
-                    className={"ghost-btn" + (addingRes ? " is-on" : "")}
-                    onClick={() => setAddingRes((v) => !v)}
-                  >
-                    <Icon name="plus" size={13} />
-                    Add resource
-                  </button>
-                </div>
-                {addingRes && (
-                  <ResourceComposer
-                    onAdd={(res) => {
-                      onAddResource(res);
-                      setAddingRes(false);
-                    }}
-                    onClose={() => setAddingRes(false)}
-                  />
-                )}
-                {threadRes.length > 0 ? (
-                  <div className="res-list">
-                    {threadRes.map((r, i) => (
-                      <ResourceRow
-                        key={i}
-                        r={r}
-                        onDelete={() => onDeleteResource(r)}
-                      />
-                    ))}
-                  </div>
-                ) : !addingRes ? (
-                  <EmptyState
-                    compact
-                    icon="paperclip"
-                    title="No resources yet"
-                    message="Attach a file, link, or doc to keep context with this thread."
-                    actionLabel="Add resource"
-                    onAction={() => setAddingRes(true)}
-                  />
-                ) : null}
-
-                <div className="later-hint">
-                  <Icon name="circle-dashed" size={15} />
-                  <span>
-                    <b>Room reserved.</b> Thread relations (blocking), live
-                    agent-session progress, and a delegate badge will live here —
-                    not built yet.
-                  </span>
-                </div>
-              </>
+            <NoteComposer onAppend={(n) => onAppendNote(thread.ticket, n)} />
+            <div className="log">
+              {shown.map((n, i) => (
+                <NoteItem key={n.at + i} note={n} actorName={actorName} />
+              ))}
+            </div>
+            {hiddenCount > 0 && !showAll && (
+              <button className="log-more" onClick={() => setShowAll(true)}>
+                <Icon name="chevron-down" size={14} />
+                Show {hiddenCount} earlier {hiddenCount === 1 ? "note" : "notes"}
+              </button>
             )}
+            {showAll && hiddenCount > 0 && (
+              <button className="log-more" onClick={() => setShowAll(false)}>
+                <Icon name="chevron-up" size={14} />
+                Collapse history
+              </button>
+            )}
+
+            <div className="dp-sec-head">
+              <h3>Resources</h3>
+              <span className="dp-sec-count">{threadRes.length}</span>
+              <span className="line" />
+              <button
+                className={"ghost-btn" + (addingRes ? " is-on" : "")}
+                onClick={() => setAddingRes((v) => !v)}
+              >
+                <Icon name="plus" size={13} />
+                Add resource
+              </button>
+            </div>
+            {addingRes && (
+              <ResourceComposer
+                onAdd={(res) => {
+                  onAddResource(res);
+                  setAddingRes(false);
+                }}
+                onClose={() => setAddingRes(false)}
+              />
+            )}
+            {threadRes.length > 0 ? (
+              <div className="res-list">
+                {threadRes.map((r, i) => (
+                  <ResourceRow
+                    key={i}
+                    r={r}
+                    onDelete={() => onDeleteResource(r)}
+                  />
+                ))}
+              </div>
+            ) : !addingRes ? (
+              <EmptyState
+                compact
+                icon="paperclip"
+                title="No resources yet"
+                message="Attach a file, link, or doc to keep context with this thread."
+                actionLabel="Add resource"
+                onAction={() => setAddingRes(true)}
+              />
+            ) : null}
+
+            <div className="later-hint">
+              <Icon name="circle-dashed" size={15} />
+              <span>
+                <b>Room reserved.</b> Thread relations (blocking), live
+                agent-session progress, and a delegate badge will live here —
+                not built yet.
+              </span>
+            </div>
           </div>
         )}
       </div>

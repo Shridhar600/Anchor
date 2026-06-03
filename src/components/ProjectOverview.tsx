@@ -1,6 +1,7 @@
 /* ProjectOverview — the project page. Info + threads + all resources. */
 import { useState, useRef, useEffect } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Icon, TypeIcon, PrioBars, ColDot, latestCheckpoint, statusLabel } from "../lib/ui";
 import { EmptyState } from "./States";
 import { ResourceRow, ResourceComposer } from "./Resource";
@@ -131,83 +132,174 @@ function OvEditableDesc({
   );
 }
 
-function OvEditablePath({
+/* Icon-only metadata control (Local path / Git remote) — lives top-right of
+   the project header. Quiet icon button; a presence dot marks "set". Click
+   opens a popover to view / copy / open or reveal / edit.
+   Empty state reads as a dashed "add". */
+function OvMetaItem({
+  icon,
+  label,
   value,
+  mono,
+  placeholder,
+  browse,
+  onReveal,
+  onOpen,
   onSave,
 }: {
+  icon: string;
+  label: string;
   value: string;
+  mono?: boolean;
+  placeholder: string;
+  browse?: boolean;
+  onReveal?: () => void;
+  onOpen?: () => void;
   onSave: (v: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value]);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setEditing(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setEditing(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const openPop = () => {
+    setOpen(true);
+    if (!value) setEditing(true);
+  };
+
+  const save = (v?: string) => {
+    onSave((v != null ? v : draft).trim());
+    setEditing(false);
+    setOpen(false);
+  };
+
+  const copy = () => {
+    try {
+      navigator.clipboard.writeText(value);
+    } catch (_) {
+      // ignore
+    }
+    pushToast({ kind: "success", message: label + " copied" });
+    setOpen(false);
+  };
 
   const handleBrowse = async () => {
     try {
-      const result = await open({ directory: true });
+      const result = await openDialog({ multiple: false, directory: true });
       if (result === null) return;
-      const picked = result as string;
-      setDraft(picked);
-      onSave(picked);
+      save(result as string);
     } catch (e) {
       pushToast({ kind: "error", message: `Couldn't open folder picker: ${String(e)}` });
     }
   };
 
-  const save = () => onSave(draft.trim());
-
   return (
-    <div className="field-input-wrap ov-meta-input-wrap">
-      <Icon name="folder" size={13} className="ov-meta-icon" />
-      <input
-        className="field-input mono ov-meta-input"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); save(); (e.target as HTMLInputElement).blur(); }
-          if (e.key === "Escape") { setDraft(value); (e.target as HTMLInputElement).blur(); }
-        }}
-        placeholder="No local path"
-      />
+    <div className="ov-metaitem" ref={wrapRef}>
       <button
-        className="ghost-btn field-browse"
-        type="button"
-        onClick={handleBrowse}
-        title="Browse for folder"
-        aria-label="Browse for folder"
+        className={
+          "ov-metabtn" +
+          (value ? " is-set" : " is-empty") +
+          (open ? " is-open" : "")
+        }
+        onClick={() => (open ? setOpen(false) : openPop())}
+        title={value ? `${label}: ${value}` : `Add ${label.toLowerCase()}`}
+        aria-label={label}
       >
-        Browse…
+        <Icon name={icon} size={16} />
+        {!value && (
+          <span className="ov-metabtn-add">
+            <Icon name="plus" size={9} />
+          </span>
+        )}
       </button>
-    </div>
-  );
-}
-
-function OvEditableRemote({
-  value,
-  onSave,
-}: {
-  value: string;
-  onSave: (v: string) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value]);
-
-  const save = () => onSave(draft.trim());
-
-  return (
-    <div className="field-input-wrap ov-meta-input-wrap">
-      <Icon name="git-branch" size={13} className="ov-meta-icon" />
-      <input
-        className="field-input mono ov-meta-input"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); save(); (e.target as HTMLInputElement).blur(); }
-          if (e.key === "Escape") { setDraft(value); (e.target as HTMLInputElement).blur(); }
-        }}
-        placeholder="github.com/you/project"
-      />
+      {open && (
+        <div className="ov-pop">
+          <div className="ov-pop-label">{label}</div>
+          {editing ? (
+            <div className="ov-pop-edit">
+              <input
+                ref={inputRef}
+                className={"ov-pop-input" + (mono ? " mono" : "")}
+                value={draft}
+                placeholder={placeholder}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    save();
+                  }
+                }}
+              />
+              {browse && (
+                <button className="ov-pop-browse" onClick={handleBrowse} type="button">
+                  <Icon name="folder-open" size={14} />
+                  Browse
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className={"ov-pop-val" + (mono ? " mono" : "")}>{value}</div>
+              <div className="ov-pop-actions">
+                <button className="ov-pop-act" onClick={copy}>
+                  <Icon name="copy" size={13} />
+                  Copy
+                </button>
+                {browse && onReveal ? (
+                  <button className="ov-pop-act" onClick={() => { onReveal(); setOpen(false); }}>
+                    <Icon name="external-link" size={13} />
+                    Reveal
+                  </button>
+                ) : onOpen ? (
+                  <button className="ov-pop-act" onClick={() => { onOpen(); setOpen(false); }}>
+                    <Icon name="external-link" size={13} />
+                    Open
+                  </button>
+                ) : null}
+                <span className="line" />
+                <button className="ov-pop-act" onClick={() => setEditing(true)}>
+                  <Icon name="pencil" size={13} />
+                  Edit
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -250,7 +342,7 @@ export function ProjectOverview({
     col: c,
     count: threads.filter((t) => t.status === c.id).length,
   }));
-  const open = threads.filter((t) => t.status !== "done").length;
+  const openCount = threads.filter((t) => t.status !== "done").length;
 
   const [showAllThreads, setShowAllThreads] = useState(false);
   const [showAllRes, setShowAllRes] = useState(false);
@@ -270,6 +362,22 @@ export function ProjectOverview({
     .filter((x) => x.scope === "thread")
     .map((x) => x.r);
 
+  const handleRevealPath = () => {
+    if (!project.path) return;
+    revealItemInDir(project.path).catch((e) =>
+      pushToast({ kind: "error", message: `Couldn't reveal in Finder: ${String(e)}` })
+    );
+  };
+
+  const handleOpenRemote = () => {
+    if (!project.remote) return;
+    const raw = project.remote.trim();
+    const url = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+    openUrl(url).catch((e) =>
+      pushToast({ kind: "error", message: `Couldn't open URL: ${String(e)}` })
+    );
+  };
+
   return (
     <div className="ov-scroll">
       <div className="ov">
@@ -288,31 +396,36 @@ export function ProjectOverview({
               {project.key}
             </span>
           </div>
+          <span className="line" />
           {project.status === "archived" && (
             <span className="ov-archived">Archived</span>
           )}
+          <div className="ov-head-meta">
+            <OvMetaItem
+              icon="folder-git-2"
+              label="Local path"
+              value={project.path}
+              mono
+              browse
+              placeholder="Add local path"
+              onReveal={handleRevealPath}
+              onSave={(v) => onSaveProject(project.key, { path: v })}
+            />
+            <OvMetaItem
+              icon="globe"
+              label="Git remote"
+              value={project.remote}
+              mono
+              placeholder="Add git remote"
+              onOpen={handleOpenRemote}
+              onSave={(v) => onSaveProject(project.key, { remote: v })}
+            />
+          </div>
         </div>
         <OvEditableDesc
           value={project.description}
           onSave={(v) => onSaveProject(project.key, { description: v })}
         />
-
-        <div className="ov-meta-fields">
-          <div className="ov-meta-row">
-            <span className="ov-meta-label">Path</span>
-            <OvEditablePath
-              value={project.path}
-              onSave={(v) => onSaveProject(project.key, { path: v })}
-            />
-          </div>
-          <div className="ov-meta-row">
-            <span className="ov-meta-label">Remote</span>
-            <OvEditableRemote
-              value={project.remote}
-              onSave={(v) => onSaveProject(project.key, { remote: v })}
-            />
-          </div>
-        </div>
 
         <div className="ov-stats">
           {byStatus.map(({ col, count }) => (
@@ -329,7 +442,7 @@ export function ProjectOverview({
         <div className="dp-sec-head">
           <h3>Threads</h3>
           <span className="dp-sec-count">
-            {open} open · {threads.length} total
+            {openCount} open · {threads.length} total
           </span>
           <span className="line" />
           <button
