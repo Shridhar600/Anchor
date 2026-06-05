@@ -38,9 +38,6 @@ version = "0.1.0"
 dependencies = [
  "anchor-core",
  "directories",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
  "rusqlite",
  "serde",
  "tauri",

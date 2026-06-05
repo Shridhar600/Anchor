@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Anchor — local-first dev project & thread tracker (CLI)."
 repository = "https://github.com/Shridhar600/Anchor"
+license = "MIT"
 
 [[bin]]
 name = "anchor"

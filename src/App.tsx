@@ -9,6 +9,8 @@ import { repoLabel, pathLabel } from "./lib/format";
 import * as api from "./lib/api";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { platform } from "./lib/platform";
+import { WindowControls } from "./components/WindowControls";
 import type {
   Project,
   Thread,
@@ -163,6 +165,11 @@ export default function App() {
     r.style.setProperty("--font-sans", FONT_STACKS[settings.typeface] || "");
     localStorage.setItem("anchor-settings", JSON.stringify(settings));
   }, [settings]);
+
+  // ---- set data-platform on <html> once ----
+  useEffect(() => {
+    document.documentElement.setAttribute("data-platform", platform);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("anchor-sb", collapsed ? "1" : "0");
@@ -972,6 +979,7 @@ export default function App() {
               </div>
             </div>
           )}
+          <WindowControls />
         </div>
 
         {!isAll && !isCreate && !showOnboarding && tab !== "overview" && project?.description && (
