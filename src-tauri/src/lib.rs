@@ -3,8 +3,6 @@
 pub mod commands;
 pub mod dto;
 pub mod error;
-#[cfg(target_os = "macos")]
-mod macos;
 pub mod mapping;
 mod path;
 mod state;
@@ -14,7 +12,7 @@ pub use error::ApiError;
 use crate::state::AppState;
 use anchor_core::db::Db;
 use std::sync::Mutex;
-use tauri::{Manager, WindowEvent};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,20 +30,6 @@ pub fn run() {
                 db_path,
             };
             app.manage(state);
-
-            #[cfg(target_os = "macos")]
-            {
-                if let Some(window) = app.get_webview_window("main") {
-                    macos::apply_traffic_light_position(&window);
-                    let window_for_events = window.clone();
-                    window.on_window_event(move |event| match event {
-                        WindowEvent::Resized(_) | WindowEvent::Focused(_) => {
-                            macos::apply_traffic_light_position(&window_for_events);
-                        }
-                        _ => {}
-                    });
-                }
-            }
 
             Ok(())
         })

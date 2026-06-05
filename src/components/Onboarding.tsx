@@ -1,5 +1,6 @@
 /* Onboarding — empty state for a brand-new workspace (no projects yet). */
 import { Icon } from "../lib/ui";
+import anchorMark from "../assets/anchor-mark.png";
 
 export function Onboarding({
   onCreate,
@@ -11,9 +12,12 @@ export function Onboarding({
   return (
     <div className="onb">
       <div className="onb-inner">
-        <span className="onb-ic">
-          <Icon name="folder-git-2" size={26} />
-        </span>
+        <img
+          className="onb-logo"
+          src={anchorMark}
+          alt="Anchor"
+          style={{ width: 76, height: 76, marginBottom: 4 }}
+        />
         <h1 className="onb-title">No projects yet</h1>
         <p className="onb-sub">
           Create your first project to start tracking threads, decisions, and

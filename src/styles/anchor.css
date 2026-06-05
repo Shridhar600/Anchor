@@ -7,6 +7,20 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 
 #root { height: 100vh; }
 
+/* ===== Window chrome CSS-var inset system ================================ */
+/* Platform is set via data-platform on <html> at startup (see platform.ts).
+   --titlebar-h  : height of the chrome band (topbar / sidebar header) — fixed.
+   --chrome-inset-left  : space reserved for left-side native controls (macOS traffic lights).
+   --chrome-inset-right : space reserved for right-side custom controls (Win/Linux). */
+:root {
+  --titlebar-h: 54px;
+  --chrome-inset-left: 0px;
+  --chrome-inset-right: 0px;
+}
+[data-platform="macos"]   { --chrome-inset-left: 78px; }
+[data-platform="windows"] { --chrome-inset-right: 140px; }
+[data-platform="linux"]   { --chrome-inset-right: 140px; }
+
 /* ===== Tweakable feel: Density + Material (driven by Tweaks.jsx) ========= */
 /* DENSITY — compact / default / roomy reshape padding, gaps and column width.
    NOTE: topbar height is intentionally NOT density-driven — it stays fixed so the
@@ -99,6 +113,10 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
   -webkit-user-select: none; user-select: none;
 }
 .topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* Collapsed sidebar: native traffic lights (macOS) overlay the topbar-left corner.
+   Use the CSS-var inset so the first interactive element clears the lights.
+   On Windows/Linux --chrome-inset-left is 0px, so no left padding is added. */
+.topbar-left--sb-off { padding-left: var(--chrome-inset-left); }
 .topbar-spacer { flex: 1; }
 
 /* project identity — name is the doorway to the overview */
@@ -139,6 +157,26 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 .tb-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
 .act-wrap { position: relative; display: flex; }
+
+/* Win/Linux custom window controls — last element in .topbar, far-right.
+   Not rendered on macOS (native traffic lights handle it — see WindowControls.tsx).
+   These are interactive buttons and must NOT be a drag region. */
+.winctrls {
+  display: flex; align-items: center; flex-shrink: 0;
+  margin-left: 4px;
+  /* Negative right margin pulls flush with the window edge */
+  margin-right: -12px;
+}
+.winctrl {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 54px; flex-shrink: 0;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--fg-2);
+  transition: background 110ms ease, color 110ms ease;
+  -webkit-user-select: none; user-select: none;
+}
+.winctrl:hover { background: var(--fill); color: var(--fg-1); }
+.winctrl-close:hover { background: var(--error, #e54d2e); color: #fff; }
 
 /* collapsing icon buttons — icon at rest, label reveals on hover */
 .act {
@@ -257,10 +295,19 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
   background: var(--bg-2);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
-  padding: 0 12px 12px; gap: 2px;
+  /* 8px horizontal padding so project list / items don't sit flush against
+     the window border. The titlebar row (.sb-winctl) overrides left padding
+     with its own inset to clear the native traffic lights. */
+  padding: 0 8px 12px; gap: 2px;
   min-height: 0;
 }
-.sb-winctl { height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+.sb-winctl {
+  height: 54px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: flex-end;
+  /* Toggle stays RIGHT-aligned; left padding ensures the row's content area
+     starts after the native traffic lights on macOS (0px on Win/Linux). */
+  padding-left: var(--chrome-inset-left);
+}
 .sb-resize {
   position: absolute; top: 0; right: -3px; bottom: 0; width: 6px;
   cursor: col-resize; z-index: 5;

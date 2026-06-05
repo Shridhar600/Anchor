@@ -114,6 +114,11 @@ const SETTINGS_NAV = [
   { id: "developer", label: "Developer", icon: "flask-conical" },
 ] as const;
 
+// Dev-only Settings (force loading/error states, simulate failures). Auto-enabled
+// in `tauri dev` and stripped from production builds. Flip to a hardcoded `true`
+// if you need it in a release build temporarily.
+const DEV_TOOLS = import.meta.env.DEV;
+
 type SettingsSection = (typeof SETTINGS_NAV)[number]["id"];
 
 function AppearancePanel({
@@ -331,6 +336,7 @@ export function SettingsModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const nav = SETTINGS_NAV.filter((s) => DEV_TOOLS || s.id !== "developer");
   const active = SETTINGS_NAV.find((s) => s.id === section) ?? SETTINGS_NAV[0];
 
   return (
@@ -343,7 +349,7 @@ export function SettingsModal({
       >
         <nav className="settings-nav">
           <div className="settings-nav-title">Settings</div>
-          {SETTINGS_NAV.map((s) => (
+          {nav.map((s) => (
             <button
               key={s.id}
               className={"settings-nav-item" + (section === s.id ? " is-active" : "")}
@@ -369,7 +375,7 @@ export function SettingsModal({
               <AccountPanel settings={settings} onChange={onChange} />
             )}
             {section === "data" && <DataPanel dbInfo={dbInfo} />}
-            {section === "developer" && (
+            {section === "developer" && DEV_TOOLS && (
               <DeveloperPanel settings={settings} onChange={onChange} />
             )}
           </div>
