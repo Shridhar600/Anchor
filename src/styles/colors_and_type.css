@@ -1,0 +1,204 @@
+/* ==========================================================================
+   Shridhar Design System — Color & Type Foundations
+   Version 1.0
+   --------------------------------------------------------------------------
+   Philosophy: calm, intelligent, effortless. Never pure black, never pure
+   white, never highly saturated. Typography and whitespace do the work.
+   Light theme is the default; add data-theme="dark" to <html> for dark.
+   ========================================================================== */
+
+/* --- Fonts -------------------------------------------------------------- */
+/* NOTE (Anchor integration): the Google Fonts @import was removed for local-first /
+   no-network / strict-CSP, and the unused 'SF Pro Rounded' @font-face block was
+   removed (those .otf files are Apple-licensed, not redistributable, and nothing in
+   the stylesheet actually references the family). Type falls back to the system stack
+   defined in --font-sans / --font-mono below — native SF Pro Text + SF Mono on macOS.
+   To pin Inter / JetBrains Mono exactly, self-host the OFL webfonts under
+   src/styles/fonts/ and re-add @font-face here. */
+
+:root {
+  /* === Base color tokens — LIGHT (default) =============================== */
+
+  /* Surfaces — neutral white-and-grey play (no blue/cream tint) */
+  --winter-white: #FBFBFC;   /* primary app canvas — near-white      */
+  --snow-white:   #F6F6F7;   /* sidebar / secondary panels — light grey */
+  --frost-white:  #FCFCFD;   /* cards, modals, floating els — soft white */
+  --egg-shell:    #F7F7F9;   /* alternative surface                  */
+  --blanc:        #ECECEE;   /* neutral fill / hover                 */
+
+  --bg-1: var(--winter-white);   /* primary background        */
+  --bg-2: var(--snow-white);     /* secondary background      */
+  --surface:     var(--frost-white);  /* elevated surface     */
+  --surface-alt: var(--egg-shell);    /* alternative surface  */
+  --fill:        var(--blanc);        /* neutral fill / hover */
+  --selected:    #E1E1E4;             /* neutral selection (nav, lists) */
+
+  /* Foreground / text — softened, never pure black */
+  --fg-1: #1C2024;   /* primary text   */
+  --fg-2: #5B636E;   /* secondary text */
+  --fg-3: #8A909B;   /* metadata / muted */
+  --fg-on-accent: #FFFFFF; /* text atop accent fills (kept white only here) */
+
+  /* Borders — barely visible, slightly stronger on near-white */
+  --border:        rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.11);
+
+  /* === Accent colors (shared across themes) ============================= */
+  --accent:        #6587D8;  /* muted intelligent blue (primary) */
+  --accent-hover:  #5878C6;
+  --accent-soft:   rgba(101, 135, 216, 0.12);
+
+  --success:       #5E8B7E;  /* muted green  */
+  --success-soft:  rgba(94, 139, 126, 0.14);
+  --warning:       #D89A3A;  /* muted amber  */
+  --warning-soft:  rgba(216, 154, 58, 0.14);
+  --error:         #C86A6A;  /* muted red    */
+  --error-soft:    rgba(200, 106, 106, 0.14);
+
+  --premium:       #D4AA7D;  /* sandy clay — premium highlight, use sparingly */
+
+  /* === Shadows — near-flat; borders first, shadows barely there ========= */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.07);
+
+  /* === Spacing — base unit 8px ========================================== */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+  --space-8: 64px;
+
+  /* === Radii — avoid bubble UI ========================================== */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-max: 20px;
+
+  /* === Typography ======================================================= */
+  /* Primary UI face: native SF Pro Text/Display on macOS (Tauri) via system-ui,
+     Inter as the loaded web fallback. --font-display gets SF Pro Display for large
+     headings (optical sizing handled by the OS). SF Pro Rounded available via Tweaks. */
+  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-display: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (size / weight / line-height / tracking) */
+  --text-page:      32px;  /* Page Title    — 600 */
+  --text-section:   24px;  /* Section Title — 600 */
+  --text-card:      16px;  /* Card Title    — 600 */
+  --text-body:      14px;  /* Body          — 400 */
+  --text-secondary: 13px;  /* Secondary     — 400 */
+  --text-meta:      12px;  /* Metadata      — 400 */
+
+  /* UI size scale — snap every component size onto these (no half-px drift) */
+  --fs-xs:   11px;   /* mono keys, badges, uppercase overlines */
+  --fs-sm:   12px;   /* meta, counts, kbd, small labels */
+  --fs-base: 13px;   /* secondary text, menu items, buttons */
+  --fs-md:   14px;   /* body, card & row titles */
+  --fs-lg:   16px;   /* large card / section title */
+  --fs-xl:   18px;   /* project name, panel headers */
+  --fs-2xl:  24px;   /* detail / overview title */
+  --fs-3xl:  32px;   /* page title */
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+
+  --leading-tight: 1.2;
+  --leading-snug:  1.35;
+  --leading-body:  1.55;
+}
+
+/* === Dark theme ========================================================= */
+:root[data-theme="dark"] {
+  --bg-1: #272727;          /* Shadow Grey — primary canvas */
+  --bg-2: #2D2D2D;          /* secondary panels             */
+  --surface:     #323232;   /* cards, floating panels       */
+  --surface-alt: #2A2A2A;
+  --fill:        #383838;
+  --selected:    #434343;   /* neutral selection (nav, lists) */
+
+  --fg-1: #ECECEC;
+  --fg-2: #A6A6A6;
+  --fg-3: #757575;
+  --fg-on-accent: #FFFFFF;
+
+  --border:        rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.10);
+
+  /* In dark, Sandy Clay becomes the premium accent of choice */
+  --accent-soft:  rgba(101, 135, 216, 0.18);
+  --success-soft: rgba(94, 139, 126, 0.20);
+  --warning-soft: rgba(216, 154, 58, 0.20);
+  --error-soft:   rgba(200, 106, 106, 0.20);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 2px 10px rgba(0, 0, 0, 0.30);
+}
+
+/* ==========================================================================
+   Semantic element styles — apply directly to tags or via classes
+   ========================================================================== */
+body {
+  background: var(--bg-1);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, .h1 {
+  font-size: var(--text-page);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
+  color: var(--fg-1);
+}
+
+h2, .h2 {
+  font-size: var(--text-section);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.015em;
+  color: var(--fg-1);
+}
+
+h3, .h3 {
+  font-size: var(--text-card);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: -0.01em;
+  color: var(--fg-1);
+}
+
+p, .body {
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+  color: var(--fg-1);
+}
+
+.text-secondary {
+  font-size: var(--text-secondary);
+  color: var(--fg-2);
+}
+
+.text-meta {
+  font-size: var(--text-meta);
+  color: var(--fg-3);
+}
+
+code, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  font-feature-settings: 'liga' 0;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }

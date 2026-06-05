@@ -3,12 +3,14 @@ use crate::models::{Project, ProjectStatus};
 use rusqlite::{Connection, OptionalExtension};
 
 /// Input for creating a new project.
+#[derive(Debug, Default)]
 pub struct NewProject {
     pub key: String,
     pub name: String,
     pub description: Option<String>,
     pub local_path: Option<String>,
     pub git_remote: Option<String>,
+    pub icon: Option<String>,
     pub status: ProjectStatus,
 }
 
@@ -20,6 +22,7 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<Project> {
         description: r.get("description")?,
         local_path: r.get("local_path")?,
         git_remote: r.get("git_remote")?,
+        icon: r.get("icon")?,
         status: {
             let s: String = r.get("status")?;
             s.parse::<ProjectStatus>().map_err(|e| {
@@ -39,9 +42,9 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<Project> {
 /// Create a new project and return its full row.
 pub fn create(conn: &Connection, p: NewProject) -> Result<Project> {
     conn.execute(
-        "INSERT INTO projects (key, name, description, local_path, git_remote, status, thread_counter, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, strftime('%Y-%m-%dT%H:%M:%SZ','now'), strftime('%Y-%m-%dT%H:%M:%SZ','now'))",
-        rusqlite::params![p.key, p.name, p.description, p.local_path, p.git_remote, p.status.as_str()],
+        "INSERT INTO projects (key, name, description, local_path, git_remote, icon, status, thread_counter, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, strftime('%Y-%m-%dT%H:%M:%SZ','now'), strftime('%Y-%m-%dT%H:%M:%SZ','now'))",
+        rusqlite::params![p.key, p.name, p.description, p.local_path, p.git_remote, p.icon, p.status.as_str()],
     )?;
     let id = conn.last_insert_rowid();
     get(conn, id)
@@ -71,7 +74,7 @@ pub fn list(conn: &Connection) -> Result<Vec<Project>> {
 /// Update a project's mutable fields. Returns `NotFound` if the id doesn't exist.
 pub fn update(conn: &Connection, p: &Project) -> Result<()> {
     let n = conn.execute(
-        "UPDATE projects SET name=?2, description=?3, local_path=?4, git_remote=?5, status=?6,
+        "UPDATE projects SET name=?2, description=?3, local_path=?4, git_remote=?5, icon=?6, status=?7,
          updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?1",
         rusqlite::params![
             p.id,
@@ -79,6 +82,7 @@ pub fn update(conn: &Connection, p: &Project) -> Result<()> {
             p.description,
             p.local_path,
             p.git_remote,
+            p.icon,
             p.status.as_str()
         ],
     )?;
@@ -118,6 +122,7 @@ mod tests {
             description: Some("dev project manager".into()),
             local_path: Some("/tmp/anchor".into()),
             git_remote: None,
+            icon: None,
             status: ProjectStatus::Active,
         }
     }
@@ -177,5 +182,25 @@ mod tests {
             update(&db.conn, &p),
             Err(AnchorError::NotFound(_))
         ));
+    }
+
+    #[test]
+    fn icon_round_trips_through_create_and_update() {
+        let db = Db::open_in_memory().unwrap();
+        let mut p = create(
+            &db.conn,
+            NewProject {
+                icon: Some("🛶".into()),
+                ..sample()
+            },
+        )
+        .unwrap();
+        assert_eq!(p.icon.as_deref(), Some("🛶"));
+        let fetched = get(&db.conn, p.id).unwrap();
+        assert_eq!(fetched.icon.as_deref(), Some("🛶"));
+        p.icon = None;
+        update(&db.conn, &p).unwrap();
+        let fetched = get(&db.conn, p.id).unwrap();
+        assert_eq!(fetched.icon, None);
     }
 }

@@ -145,14 +145,67 @@ pub fn migrations() -> Migrations<'static> {
             CREATE INDEX idx_notes_thread_kind ON thread_notes(thread_id, kind_id);
         "#,
         ),
+        // --- v5: project.icon (UI) ---
+        M::up(
+            r#"
+            ALTER TABLE projects ADD COLUMN icon TEXT;
+        "#,
+        ),
+        // --- v6: settings (UI) ---
+        M::up(
+            r#"
+            CREATE TABLE settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+        "#,
+        ),
+        // --- v7: add 'folder' resource type ---
+        M::up(
+            r#"
+            INSERT INTO resource_types (key, label) VALUES ('folder', 'Folder');
+        "#,
+        ),
     ])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repository::lookup;
+    use rusqlite::Connection;
+
     #[test]
     fn migrations_validate() {
         assert!(migrations().validate().is_ok());
+    }
+
+    #[test]
+    fn v7_seeds_folder_resource_type() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrations().to_latest(&mut conn).unwrap();
+        let keys: Vec<String> = {
+            let mut stmt = conn
+                .prepare("SELECT key FROM resource_types ORDER BY key")
+                .unwrap();
+            stmt.query_map([], |r| r.get(0))
+                .unwrap()
+                .map(|r| r.unwrap())
+                .collect()
+        };
+        assert!(
+            keys.iter().any(|k| k == "folder"),
+            "folder missing from {keys:?}"
+        );
+        assert!(
+            keys.contains(&"file".to_string()),
+            "existing 'file' row was removed"
+        );
+        assert!(
+            keys.contains(&"doc".to_string()),
+            "existing 'doc' row was removed"
+        );
+        let id = lookup::id_for_key(&conn, "resource_types", "folder").unwrap();
+        assert!(id > 0);
     }
 }

@@ -2,7 +2,6 @@ use crate::audit;
 use crate::cli::{ProjectAddArgs, ProjectCmd};
 use crate::context::Context;
 use crate::error::CliError;
-use anchor_core::models::ProjectStatus;
 use anchor_core::repository::{project, resource, thread};
 
 pub fn handle(ctx: &mut Context, cmd: ProjectCmd) -> Result<i32, CliError> {
@@ -22,7 +21,7 @@ fn add(ctx: &Context, a: ProjectAddArgs) -> Result<i32, CliError> {
             description: a.desc,
             local_path: a.path,
             git_remote: a.remote,
-            status: ProjectStatus::Active,
+            ..Default::default()
         },
     )?;
     audit::record(
