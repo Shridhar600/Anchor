@@ -4,6 +4,7 @@
 *.local
 claude.md
 agents.md
+/claude_designs/
 
 # ---- Secrets / env ----
 .env
@@ -16,6 +17,12 @@ secrets/
 /target/
 **/target/
 *.rs.bk
+
+# ---- Frontend / Node (Tauri app) ----
+node_modules/
+dist/
+*.tsbuildinfo
+src-tauri/gen/
 
 # ---- OS / editor ----
 .DS_Store

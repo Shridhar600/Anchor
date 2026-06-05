@@ -99,6 +99,7 @@ mod tests {
                 description: None,
                 local_path: None,
                 git_remote: None,
+                icon: None,
                 status: ProjectStatus::Active,
             },
         )
