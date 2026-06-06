@@ -1,101 +1,88 @@
 <div align="center">
   <img src="assets/anchor-icon.png" width="120" alt="Anchor" />
   <h1>Anchor ⚓</h1>
-  <p><strong>A local-first home for your dev projects — and the context your AI tools keep losing.</strong></p>
+  <p><strong>Stay in sync with your AI coding agents — and never lose the thread between sessions.</strong></p>
+
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow.svg" alt="MIT License" /></a>
+    <img src="https://img.shields.io/badge/status-early%20%C2%B7%20WIP-orange" alt="Status: early / WIP" />
+    <a href="https://github.com/Shridhar600/Anchor/actions/workflows/ci.yml"><img src="https://github.com/Shridhar600/Anchor/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <img src="https://img.shields.io/badge/built%20with-Rust%20%2B%20Tauri-orange" alt="Built with Rust + Tauri" />
+  </p>
 </div>
 
 ---
 
-Anchor tracks your projects, their **threads** (tickets), an **append-only note log**, and
-linked **resources** — so you *and* your AI coding tools can always pick up exactly where you
-left off, instead of digging back through old chat sessions.
+You've got a handful of side projects going, each built with an AI agent. You start one late at
+night, ship a burst of work, and move on. A week later you open it back up and — *wait, what was
+I even doing here?* Right now, the only way to find out is scrolling back through old agent chats.
 
-It’s built for the way you actually work now: lots of side-projects, lots of AI-assisted
-sessions, and a constant struggle to remember *what* you were doing and *why*. Anchor keeps
-that thread — pinned to real local state (git branch, repo path, file refs).
+**Anchor is where that context lives instead.** Have your agent log a checkpoint as it works;
+come back, read the last checkpoint, and pick up right there — across all your projects, without
+re-reading a single chat session.
 
-> **Why not Notion/Linear?** Those are built for teams and live in the cloud. Anchor is
-> local-first and built so your **AI tools can read and write it** (a CLI today, an MCP server
-> next) and so every thread is tied to your actual repo. That’s the part a generic doc tool
-> structurally can’t do.
+> 🚧 **Early & evolving.** The desktop app and CLI work today. Dashboards, an **MCP server**,
+> **agent skills**, and **linking threads to your agent's chat sessions** are next. See the
+> **[Roadmap](ROADMAP.md)**.
 
 <div align="center">
-  <img src="assets/board.png" width="860" alt="Anchor board" />
-  <br/><em>The board — threads grouped by status, with a detail panel that pins “where you left off.”</em>
+  <img src="assets/board.gif" width="860" alt="Anchor demo" />
+  <br/><em>A project at a glance — threads, progress, and where you left off.</em>
 </div>
 
-## Highlights
+## How it works
 
-- **Kanban board** of threads per project (backlog → todo → in progress → blocked → done).
-- **Append-only note log** per thread — `log` / `checkpoint` / `decision` entries. The latest
-  *checkpoint* is pinned as “where I left off.” History is the product; nothing is overwritten.
-- **Resources** — attach links, files, and folders (native pickers) to a project or thread.
-- **Tied to local state** — repo path opens in your file manager, git remote opens in the
-  browser, current branch shown inline.
-- **Command palette** (⌘K), keyboard-driven, calm dark-first UI.
-- **A real CLI** (`anchor`) over the same data — scriptable, `--json` output, audit log — so
-  agents and scripts can drive it.
-- **100% local.** SQLite on disk. No cloud, no account, no telemetry.
+- **Your agent logs as it works.** Through the `anchor` CLI it opens threads, logs progress, and
+  drops checkpoints while it codes — no copy-pasting from chat.
+- **You steer from the app.** The desktop UI shows everything live; reprioritize, add your own
+  notes, see what's next.
+- **Either side resumes instantly.** Open a thread and the latest **checkpoint** tells you exactly
+  where you (or the agent) left off.
 
-## Status
+## What you get
 
-**Early, open source (MIT), macOS-first.** v1 focuses on the desktop app + CLI on macOS;
-cross-platform window chrome is in place (Windows/Linux frameless controls) but less battle-tested.
-See [CHANGELOG.md](CHANGELOG.md).
-
-## Architecture
-
-A Cargo workspace + a Tauri v2 desktop app:
-
-- **`anchor-core`** — Rust library, the data layer: SQLite (`rusqlite`) with versioned migrations
-  and a repository layer that enforces integrity in code (no DB-level foreign keys), with atomic
-  per-project ticket-key generation (`ANCHOR-1`, `ANCHOR-2`, …).
-- **`anchor-cli`** — the `anchor` binary: project / thread / note / resource commands, global
-  `--json`, and an append-only command audit log.
-- **`src-tauri` + `src/`** — the desktop app: Rust backend (Tauri commands over `anchor-core`) +
-  a React + TypeScript frontend.
+- **Projects & threads** — group your work into projects and threads (tickets / tasks).
+- **Progress log** — each thread logs progress over time; you or your agent add entries as work happens.
+- **Checkpoints** — mark “where we left off”; the latest is pinned so resuming is instant.
+- **Board & command palette** — kanban by status, ⌘K for everything, calm dark-first UI.
+- **A real CLI** — the `anchor` binary drives the same data, with `--json` for agents and scripts.
+- **Runs locally** — SQLite on disk; your project data stays on your machine.
 
 ## Build & run
 
 Requires a [Rust toolchain](https://rustup.rs/) and [pnpm](https://pnpm.io/).
 
 ```sh
-# clone, then:
 pnpm install
-
-# desktop app (dev)
-pnpm tauri dev
-
-# CLI
-cargo install --path anchor-cli   # → `anchor` on your PATH
+pnpm tauri dev                    # desktop app (dev)
+cargo install --path anchor-cli   # CLI → `anchor` on your PATH
 ```
 
-## CLI quickstart
+## Anchor for agents
+
+Point your agent at the `anchor` CLI — it's how the agent reads and writes Anchor while it works:
 
 ```sh
-anchor project add --key ANCHOR --name "Anchor" \
-  --path /path/to/repo --remote github.com/you/repo
-
-anchor thread add --project ANCHOR --title "Wire up the MCP server" \
-  --type feature --status todo --priority high
-
-anchor note add --thread ANCHOR-1 --kind checkpoint \
-  --body "Stubbed the server; next: list_threads + append_note."
-
-anchor thread list --project ANCHOR        # the board, grouped by status
-anchor thread show ANCHOR-1                 # detail + note log
-anchor thread move ANCHOR-1 --status in_progress
+anchor project add --key ANCHOR --name "Anchor" --path . --remote github.com/you/repo
+anchor thread add --project ANCHOR --title "Wire up the MCP server" --type feature --priority high
+anchor note add --thread ANCHOR-1 --kind checkpoint --body "Stubbed server; next: list_threads."
+anchor thread list --project ANCHOR     # threads grouped by status
+anchor thread show ANCHOR-1             # detail + progress log
 ```
 
-Add `--json` to any command for machine-readable output (handy for agents), and `--actor <name>`
-to attribute changes in the audit log.
+Add `--json` for machine-readable output, and `--actor <name>` to attribute who did what.
 
-## Contributing
+## Architecture
 
-Contributions are welcome — issues and pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md)
-for local development and the workflow. For anything non-trivial, open an issue first to
-discuss the approach.
+Cargo workspace + a Tauri v2 desktop app:
 
-## License
+- **`anchor-core`** — Rust data layer: SQLite, versioned migrations, integrity enforced in code.
+- **`anchor-cli`** — the `anchor` binary: the surface your agents and scripts drive.
+- **`src-tauri` + `src/`** — desktop app: Rust backend (Tauri commands over `anchor-core`) + React/TypeScript UI.
 
-[MIT](LICENSE) © 2026 Shridhar600. Free to use, modify, and distribute.
+## Project
+
+- **Roadmap** → [ROADMAP.md](ROADMAP.md) · what's shipped and what's next.
+- **Contributing** → [CONTRIBUTING.md](CONTRIBUTING.md) · issues + PRs welcome; open an issue first for anything non-trivial.
+- **Changelog** → [CHANGELOG.md](CHANGELOG.md).
+- **License** → [MIT](LICENSE) © 2026 Shridhar600.
