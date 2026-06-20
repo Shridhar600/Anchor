@@ -16,7 +16,7 @@ name = "anchor-app"
 path = "src/main.rs"
 
 [build-dependencies]
-tauri-build = { version = "=2.6.2", features = [] }
+tauri-build = { version = "=2.6.3", features = [] }
 
 [dependencies]
 anchor-core = { path = "../anchor-core" }
