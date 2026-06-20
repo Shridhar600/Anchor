@@ -16,7 +16,7 @@ jobs:
     name: build · test · lint · audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Tauri v2 Linux system dependencies (needed to compile the desktop crate).
       - name: Install Tauri system deps
