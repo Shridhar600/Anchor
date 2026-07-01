@@ -759,6 +759,21 @@ body { margin: 0; overflow: hidden; background: var(--bg-1); }
 }
 .attr-branch svg { width: 12px; height: 12px; stroke-width: 2; color: var(--accent); }
 
+/* editable type / priority pills (detail panel + draft) */
+.attr-edit-wrap { position: relative; display: inline-flex; }
+.attr.attr-edit {
+  gap: 6px; padding: 3px 7px; margin: -3px 0;
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: var(--fg-2); font-family: var(--font-sans); font-size: var(--fs-sm);
+  cursor: pointer; transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
+}
+.attr.attr-edit:hover, .attr.attr-edit.is-open {
+  background: var(--fill); border-color: var(--border); color: var(--fg-1);
+}
+.attr-caret { color: var(--fg-3); margin-left: 1px; }
+.attr-menu { top: calc(100% + 5px); left: 0; width: 186px; }
+.attr-menu .cp-item .cp-ic { justify-content: center; }
+
 /* thread description */
 .dp-desc {
   font-size: var(--fs-md); line-height: 1.6; color: var(--fg-2);

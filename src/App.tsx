@@ -16,6 +16,8 @@ import type {
   Thread,
   Resource,
   ThreadStatus,
+  ThreadType,
+  Priority,
   NoteKind,
   ResourceType,
 } from "./lib/types";
@@ -520,6 +522,26 @@ export default function App() {
         setThreads((ts) => ts.map((t) => (t.ticket === ticket ? updated : t)));
       })
       .catch((e) => fail(`Couldn't save title: ${String(e)}`));
+  }, []);
+
+  const handleSetType = useCallback((ticket: string, type: ThreadType) => {
+    setThreads((ts) => ts.map((t) => (t.ticket === ticket ? { ...t, type } : t)));
+    api
+      .updateThread({ ticket, type })
+      .then((updated) => {
+        setThreads((ts) => ts.map((t) => (t.ticket === ticket ? updated : t)));
+      })
+      .catch((e) => fail(`Couldn't change type: ${String(e)}`));
+  }, []);
+
+  const handleSetPriority = useCallback((ticket: string, priority: Priority) => {
+    setThreads((ts) => ts.map((t) => (t.ticket === ticket ? { ...t, priority } : t)));
+    api
+      .updateThread({ ticket, priority })
+      .then((updated) => {
+        setThreads((ts) => ts.map((t) => (t.ticket === ticket ? updated : t)));
+      })
+      .catch((e) => fail(`Couldn't change priority: ${String(e)}`));
   }, []);
 
   const handleCreateProject = useCallback(
@@ -1121,10 +1143,6 @@ export default function App() {
                     </>
                   ) : null}
                   <span className="sb-spacer" />
-                  <span className="sb-seg sb-sync sb-muted">
-                    <span className="sb-sync-dot" />
-                    Saved locally
-                  </span>
                 </div>
               </footer>
             </>
@@ -1162,6 +1180,20 @@ export default function App() {
                     handleUpdateDraft({ status });
                   } else {
                     moveStatus(ticket, status);
+                  }
+                }}
+                onSetType={(ticket, type) => {
+                  if (openTicket === DRAFT_TICKET) {
+                    handleUpdateDraft({ type });
+                  } else {
+                    handleSetType(ticket, type);
+                  }
+                }}
+                onSetPriority={(ticket, priority) => {
+                  if (openTicket === DRAFT_TICKET) {
+                    handleUpdateDraft({ priority });
+                  } else {
+                    handleSetPriority(ticket, priority);
                   }
                 }}
                 onAppendNote={handleAppendNote}

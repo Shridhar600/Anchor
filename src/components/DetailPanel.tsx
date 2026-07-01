@@ -4,15 +4,16 @@ import { useState, useEffect, useRef } from "react";
 import {
   Icon,
   ColDot,
+  PrioBars,
   statusLabel,
   toneBg,
   AuthorBadge,
 } from "../lib/ui";
-import { TYPE_META, PRIORITY_META, AUTHOR_META } from "../lib/meta";
+import { TYPE_META, PRIORITY_META, AUTHOR_META, TYPES } from "../lib/meta";
 import { InlineError, SkeletonDetail } from "./States";
 import { EmptyState } from "./States";
 import { ResourceRow, ResourceComposer } from "./Resource";
-import type { Thread, Project, Note, Resource, ThreadStatus, NoteKind, ResourceType } from "../lib/types";
+import type { Thread, Project, Note, Resource, ThreadStatus, ThreadType, Priority, NoteKind, ResourceType } from "../lib/types";
 import type { COLUMNS } from "../lib/meta";
 
 type Column = (typeof COLUMNS)[number];
@@ -338,6 +339,130 @@ function EditableDescription({
   );
 }
 
+// Priority order for the picker — most important first.
+const PRIO_ORDER: Priority[] = ["high", "med", "low"];
+
+/* Editable type + priority pills (also used in the draft/create view).
+   Reuses the .status-menu / .cp-item popover pattern. Branch is read-only. */
+function AttrPills({
+  thread,
+  onSetType,
+  onSetPriority,
+}: {
+  thread: Thread;
+  onSetType: (ticket: string, type: ThreadType) => void;
+  onSetPriority: (ticket: string, priority: Priority) => void;
+}) {
+  const [menu, setMenu] = useState<"type" | "prio" | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  const tmeta = TYPE_META[thread.type];
+
+  return (
+    <div className="dp-attrs" ref={ref}>
+      <div className="attr-edit-wrap">
+        <button
+          className={"attr attr-edit" + (menu === "type" ? " is-open" : "")}
+          onClick={() => setMenu((m) => (m === "type" ? null : "type"))}
+          title="Change type"
+        >
+          <span className="attr-type-ic" style={toneBg(tmeta.tone)}>
+            <Icon name={tmeta.icon} size={12} />
+          </span>
+          {tmeta.label}
+          <Icon name="chevron-down" size={12} className="attr-caret" />
+        </button>
+        {menu === "type" && (
+          <div className="status-menu attr-menu">
+            {TYPES.map((tp) => {
+              const m = TYPE_META[tp];
+              return (
+                <button
+                  key={tp}
+                  className="cp-item"
+                  style={{ fontSize: "13px" }}
+                  onClick={() => {
+                    if (tp !== thread.type) onSetType(thread.ticket, tp);
+                    setMenu(null);
+                  }}
+                >
+                  <span className="cp-ic">
+                    <span className="attr-type-ic" style={toneBg(m.tone)}>
+                      <Icon name={m.icon} size={12} />
+                    </span>
+                  </span>
+                  <span className="cp-item-title">{m.label}</span>
+                  {thread.type === tp && (
+                    <Icon name="check" size={14} style={{ color: "var(--accent)" }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="attr-edit-wrap">
+        <button
+          className={"attr attr-edit" + (menu === "prio" ? " is-open" : "")}
+          onClick={() => setMenu((m) => (m === "prio" ? null : "prio"))}
+          title="Change priority"
+        >
+          <PrioBars priority={thread.priority} />
+          {PRIORITY_META[thread.priority].label} priority
+          <Icon name="chevron-down" size={12} className="attr-caret" />
+        </button>
+        {menu === "prio" && (
+          <div className="status-menu attr-menu">
+            {PRIO_ORDER.map((p) => (
+              <button
+                key={p}
+                className="cp-item"
+                style={{ fontSize: "13px" }}
+                onClick={() => {
+                  if (p !== thread.priority) onSetPriority(thread.ticket, p);
+                  setMenu(null);
+                }}
+              >
+                <span className="cp-ic">
+                  <PrioBars priority={p} />
+                </span>
+                <span className="cp-item-title">{PRIORITY_META[p].label}</span>
+                {thread.priority === p && (
+                  <Icon name="check" size={14} style={{ color: "var(--accent)" }} />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {thread.branch && (
+        <span className="attr-branch">
+          <Icon name="git-branch" size={12} style={{ color: "var(--accent)" }} />
+          {thread.branch}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const LOG_VISIBLE = 4;
 
 export function DetailPanel({
@@ -353,6 +478,8 @@ export function DetailPanel({
   onClose,
   onToggleFull,
   onMoveStatus,
+  onSetType,
+  onSetPriority,
   onAppendNote,
   onSaveDescription,
   onSaveTitle,
@@ -374,6 +501,8 @@ export function DetailPanel({
   onClose: () => void;
   onToggleFull: () => void;
   onMoveStatus: (ticket: string, status: ThreadStatus) => void;
+  onSetType: (ticket: string, type: ThreadType) => void;
+  onSetPriority: (ticket: string, priority: Priority) => void;
   onAppendNote: (ticket: string, n: { author: "user"; kind: NoteKind; body: string; at: string }) => void;
   onSaveDescription: (ticket: string, description: string) => void;
   onSaveTitle: (ticket: string, title: string) => void;
@@ -383,8 +512,6 @@ export function DetailPanel({
   onOpenStatusMenu: () => void;
   statusMenuOpen: boolean;
 }) {
-  const meta = TYPE_META[thread.type];
-  const tone = meta.tone;
   const [showAll, setShowAll] = useState(false);
   const [addingRes, setAddingRes] = useState(false);
 
@@ -475,6 +602,11 @@ export function DetailPanel({
               value={thread.title}
               onSave={(v) => onSaveTitle(thread.ticket, v)}
             />
+            <AttrPills
+              thread={thread}
+              onSetType={onSetType}
+              onSetPriority={onSetPriority}
+            />
             <p className="dp-draft-hint">
               Name your thread to create it. The note log and resources appear
               once it exists.
@@ -497,28 +629,11 @@ export function DetailPanel({
               onSave={(v) => onSaveTitle(thread.ticket, v)}
             />
 
-            <div className="dp-attrs">
-              <span className="attr">
-                <span className="attr-type-ic" style={toneBg(tone)}>
-                  <Icon name={meta.icon} size={12} />
-                </span>
-                {meta.label}
-              </span>
-              <span className="attr">
-                <span className="attr-l">·</span>{" "}
-                {PRIORITY_META[thread.priority].label} priority
-              </span>
-              {thread.branch && (
-                <span className="attr-branch">
-                  <Icon
-                    name="git-branch"
-                    size={12}
-                    style={{ color: "var(--accent)" }}
-                  />
-                  {thread.branch}
-                </span>
-              )}
-            </div>
+            <AttrPills
+              thread={thread}
+              onSetType={onSetType}
+              onSetPriority={onSetPriority}
+            />
 
             <EditableDescription
               value={thread.description}
