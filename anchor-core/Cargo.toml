@@ -9,7 +9,7 @@ license = "MIT"
 [dependencies]
 rusqlite = { version = "=0.39.0", features = ["bundled"] }
 rusqlite_migration = "=2.5.0"
-thiserror = "=2.0.18"
+thiserror = "=2.0.19"
 serde = { version = "=1.0.228", features = ["derive"] }
 
 [dev-dependencies]
