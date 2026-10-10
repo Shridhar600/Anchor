@@ -24,5 +24,5 @@ directories = "=6.0.0"
 rusqlite = { version = "=0.39.0", features = ["bundled"] }
 serde = { version = "=1.0.228", features = ["derive"] }
 tauri = { version = "=2.11.2", features = [] }
-tauri-plugin-dialog = "=2.7.1"
+tauri-plugin-dialog = "=2.7.3"
 tauri-plugin-opener = "=2.5.4"
