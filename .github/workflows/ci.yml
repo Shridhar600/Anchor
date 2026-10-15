@@ -68,7 +68,7 @@ jobs:
         run: cargo test --workspace
 
       - name: Audit
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.4
         with:
           tool: cargo-audit
       - run: cargo audit
